@@ -75,6 +75,7 @@ export class Globe3D implements MapRenderer {
   private plates: THREE.LineSegments | null = null
   private guessGroup = new THREE.Group()
   private draftLine: Line2 | null = null
+  private liveLine: Line2 | null = null
   private selectionRing: THREE.Mesh
   private lineMaterials: LineMaterial[] = []
   private data: MapScene
@@ -370,6 +371,14 @@ export class Globe3D implements MapRenderer {
     this.scene.add(this.draftLine)
   }
 
+  /** 그리는 중인 자유 곡선 — 떼기 전에도 지구본 위에 바로 보이게 */
+  private updateLiveLine() {
+    if (this.liveLine) { this.scene.remove(this.liveLine); this.liveLine.geometry.dispose(); const m = this.liveLine.material as LineMaterial; m.dispose(); this.lineMaterials = this.lineMaterials.filter((x) => x !== m); this.liveLine = null }
+    if (!this.stroke || this.stroke.length < 2) return
+    this.liveLine = this.makeFatLine(this.stroke, MAP_COLORS.draft, 3, false)
+    this.scene.add(this.liveLine)
+  }
+
   private updateSelection() {
     const s = this.data.selected
     if (!s) { this.selectionRing.visible = false; return }
@@ -457,7 +466,7 @@ export class Globe3D implements MapRenderer {
       const p = this.hitGlobe(e)
       if (p) {
         const last = this.stroke[this.stroke.length - 1]
-        if (Math.hypot(p[0] - last[0], p[1] - last[1]) > 0.15) { this.stroke.push(p); this.events.onDrawProgress?.(this.stroke) }
+        if (Math.hypot(p[0] - last[0], p[1] - last[1]) > 0.15) { this.stroke.push(p); this.events.onDrawProgress?.(this.stroke); this.updateLiveLine() }
       }
       return
     }
@@ -470,6 +479,7 @@ export class Globe3D implements MapRenderer {
     if (this.stroke) {
       const s = this.stroke
       this.stroke = null
+      this.updateLiveLine()
       if (this.controls) this.controls.enableRotate = true
       try { this.renderer.domElement.releasePointerCapture(e.pointerId) } catch { /* noop */ }
       if (s.length >= 2) this.events.onDrawStroke?.(s)

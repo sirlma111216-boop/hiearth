@@ -1,7 +1,8 @@
 // 2D 대화형 지도 — 캔버스 + 로컬 육지 자료. 외부 타일 서비스에 의존하지 않는다.
 import type { LngLat, ViewState } from '@shared/domain/types'
 import { prefersReducedMotion } from '../settings/settings'
-import { clampView, drawScene, makeProjector, pickAt } from './scene2d'
+import { clampView, drawScene, makeProjector, pickAt, strokeLngLatLine } from './scene2d'
+import { GUESS_STYLES } from './colors'
 import type { Interaction, MapEvents, MapRenderer, MapScene } from './types'
 import { ALL_LAYERS } from './types'
 
@@ -133,6 +134,31 @@ export class Map2D implements MapRenderer {
     if (!this.dirty) return
     this.dirty = false
     drawScene(this.ctx, this.scene, this.view, this.w, this.h, this.dpr)
+    this.drawLiveStroke()
+  }
+
+  /** 포인터를 누른 채 움직이는 동안의 선 — 떼기 전에도 바로 보이게 */
+  private drawLiveStroke() {
+    const s = this.stroke
+    if (!s || s.length < 1) return
+    const ctx = this.ctx
+    ctx.save()
+    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0)
+    const P = makeProjector(this.view, this.w, this.h)
+    const st = GUESS_STYLES.draft
+    ctx.beginPath()
+    strokeLngLatLine(ctx, P, s)
+    ctx.strokeStyle = st.color
+    ctx.lineWidth = 3
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+    ctx.shadowColor = 'rgba(102,216,193,0.6)'
+    ctx.shadowBlur = 6
+    ctx.stroke()
+    ctx.shadowBlur = 0
+    const [x0, y0] = P.project(s[0][0], s[0][1])
+    ctx.beginPath(); ctx.arc(x0, y0, 4, 0, Math.PI * 2); ctx.fillStyle = st.color; ctx.fill()
+    ctx.restore()
   }
 
   // ---------- 입력 ----------
