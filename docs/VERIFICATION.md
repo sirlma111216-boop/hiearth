@@ -29,7 +29,7 @@ GLSL 예약어 `half`, 101 응답 헤더 수정 불가, Hibernation 후 메타 �
 
 ## 측정하지 않았거나 검증하지 못한 것
 
-- 프로덕션 Cloudflare 배포: 계정·GitHub 연결·`TEACHER_SECRET` secret이 없어 수행하지 않았다. 배포 URL은 없다. 로컬 `vite build` 산출물과 wrangler 설정까지만 검증했다.
+- 프로덕션 Cloudflare 배포: 2026-10-17 `wrangler deploy`로 https://earth-expedition.sirlma.workers.dev 에 배포했다(80개 자산, Durable Object `RoomDO` 바인딩 적용). `/api/health` 200, 랜딩·SPA deep link 200, `/.dev.vars`는 SPA fallback(HTML)만 반환해 비밀 파일이 제공되지 않음을 확인했다. `TEACHER_SECRET` secret은 아직 설정하지 않아 탐사실 생성은 `noSecret`으로 거부된다(혼자 탐사는 동작). GitHub `sirlma111216-boop/hiearth`에 push했고 Actions 워크플로는 `CLOUDFLARE_API_TOKEN` secret이 추가되면 push마다 배포한다.
 - Hibernation 실제 동작: workerd 로컬에서 알람·저장·복구는 확인했으나, 프로덕션에서의 장시간 휴면 후 복구는 미검증.
 - 3D 성능 수치(fps): 측정 도구를 돌리지 않았다. 1440px 내장 브라우저에서 체감 지연 없이 회전·재생되었다. 저사양 30fps 목표는 미측정.
 - 실제 터치 기기·펜: Playwright 마우스 이벤트와 내장 브라우저 모바일 에뮬레이션으로만 확인했다.

@@ -40,4 +40,4 @@
 | 문서 9종 | `README.md`, `CLAUDE.md`, `docs/*` | 완료 |
 | 영문 브랜드 디스플레이 서체 | 추가하지 않음(선택 사항) | 미적용(의도) |
 | 40명 부하 검증 | 로컬 시뮬레이션 | VERIFICATION.md 참조 |
-| 실제 Cloudflare 배포 | 계정 연결 필요 | 미수행 |
+| 실제 Cloudflare 배포 | `wrangler deploy` → earth-expedition.sirlma.workers.dev, GitHub push 워크플로 | 완료 (API 토큰 secret·TEACHER_SECRET은 사용자 설정) |

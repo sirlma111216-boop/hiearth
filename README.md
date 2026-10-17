@@ -39,13 +39,33 @@ npm run data:fetch     # USGS/GVP/Natural Earth → public/data/*.json + manifes
 
 실행 중 앱은 외부 API를 직접 호출하지 않고(최근 피드 제외) 저장된 스냅샷을 씁니다. 자세한 조건과 한계는 [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md).
 
-## Cloudflare 배포 (GitHub 연결)
+## 배포
 
-1. 저장소를 GitHub에 올린 뒤 Cloudflare 대시보드 → Workers & Pages → Create → **Workers** → Import a repository.
-2. 빌드 설정: Build command `npm run build`, Deploy command `npx wrangler deploy`.
-3. 배포 전 비밀 값 설정: `npx wrangler secret put TEACHER_SECRET` (또는 대시보드 Settings → Variables and Secrets).
-4. `wrangler.jsonc`에 Durable Object 바인딩(`ROOM` → `RoomDO`)과 SQLite 마이그레이션(`new_sqlite_classes`)이 포함되어 있어 첫 배포에서 자동 적용됩니다.
-5. 로컬에서 수동 배포하려면 `npx wrangler login` 후 `npm run deploy`.
+- 저장소: https://github.com/sirlma111216-boop/hiearth
+- 배포 주소: https://earth-expedition.sirlma.workers.dev (Workers, 계정 `sirlma@naver.com`)
+
+### push → 자동 배포 (GitHub Actions, `.github/workflows/deploy.yml`)
+
+`main`에 push하면 typecheck·lint·단위 테스트·빌드를 거쳐 `wrangler deploy`가 실행됩니다. 배포 단계는 저장소 Secrets에 다음 두 값이 있을 때만 돌고, 없으면 검사만 하고 건너뜁니다.
+
+| Secret | 값 |
+| --- | --- |
+| `CLOUDFLARE_ACCOUNT_ID` | 설정됨 |
+| `CLOUDFLARE_API_TOKEN` | Cloudflare 대시보드 → My Profile → API Tokens → Create Token → **Edit Cloudflare Workers** 템플릿 → 생성된 토큰을 `gh secret set CLOUDFLARE_API_TOKEN --repo sirlma111216-boop/hiearth` 로 저장 |
+
+대안으로 Cloudflare 대시보드 → Workers & Pages → `earth-expedition` → Settings → Build → Connect to Git 에서 저장소를 연결해도 됩니다(Build command `npm run build`, Deploy command `npx wrangler deploy`). 둘 다 켜면 push마다 두 번 배포되므로 한 가지만 쓰세요.
+
+### 교사 비밀 값 (한 번만)
+
+```bash
+npx wrangler secret put TEACHER_SECRET
+```
+
+입력한 값이 교사 화면의 "교사 비밀 값"입니다. 설정 전에는 혼자 탐사만 되고 탐사실 생성은 거부됩니다.
+
+### 수동 배포
+
+`npx wrangler login` 후 `npm run deploy`. `wrangler.jsonc`의 Durable Object 바인딩(`ROOM` → `RoomDO`)과 SQLite 마이그레이션은 첫 배포에서 적용되었습니다.
 
 정적 자산(SPA deep link 포함)은 Workers Static Assets가 처리하고, `/api/*`만 Worker가 먼저 받습니다(`run_worker_first`). Pages 설정과 섞지 않습니다.
 
