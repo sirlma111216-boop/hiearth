@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { InquiryRecord } from '@shared/domain/types'
 import { STAGE_INFO } from '@shared/domain/activity'
+import { LESSON_SCREENS } from '@shared/domain/lesson'
 import { formatKst, isoDateUtc } from '@shared/geo/time'
 import type { LessonData } from '../data/lesson'
 import { Button } from '../ui/Button'
@@ -113,6 +114,19 @@ export function ReportView({ data, record, nickname, title, roomCode, onImport, 
           </div>
         ) : <p className="report-empty">담아 둔 관찰 증거가 없음</p>}
       </section>
+
+      {record.responses && Object.keys(record.responses).length ? (
+        <section>
+          <h2><span className="no">03+</span> 관찰 기록과 자기 분석</h2>
+          <table className="data">
+            <tbody>
+              {LESSON_SCREENS.filter((s) => record.responses?.[s.id] && ((record.responses[s.id].text ?? '').trim() || record.responses[s.id].choices?.length)).map((s) => { const r = record.responses![s.id]; return (
+                <tr key={s.id}><th style={{ width: '32%' }}>{s.step}. {s.title}</th><td>{r.choices?.length ? <div className="small muted">{r.choices.join(' · ')}</div> : null}{r.text?.trim() ? <div style={{ whiteSpace: 'pre-wrap' }}>{r.text}</div> : null}</td></tr>
+              ) })}
+            </tbody>
+          </table>
+        </section>
+      ) : null}
 
       <section>
         <h2><span className="no">04</span> 수정한 생각 (수정 추론)</h2>

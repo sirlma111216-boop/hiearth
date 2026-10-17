@@ -281,6 +281,36 @@ describe('WebSocket 규약', () => {
   })
 })
 
+describe('수업 화면 이동', () => {
+  it('교사가 화면을 옮기면 활동 상태와 공개가 따라오고 학생은 보낼 수 없다', async () => {
+    const room = await createRoom()
+    const code = room.body.code
+    const a = await join(code, '학생A')
+    const st = await ws(code, 'teacher', room.cookie)
+    const sa = await ws(code, 'student', a.cookie)
+    await nextMessage<{ type: string }>(st, (m) => m.type === 'snapshot')
+    const first = await nextMessage<{ type: string; room: { screen: { step: number; sub: number } } }>(sa, (m) => m.type === 'snapshot')
+    expect(first.room.screen).toEqual({ step: 1, sub: 1 })
+    const forged = await send(sa, { type: 'teacher:setScreen', screen: { step: 6, sub: 2 } })
+    expect(forged.ok).toBe(false)
+    const bad = await send(st, { type: 'teacher:setScreen', screen: { step: 99, sub: 1 } })
+    expect(bad.ok).toBe(false)
+    const ok = await send(st, { type: 'teacher:setScreen', screen: { step: 6, sub: 2 } })
+    expect(ok.ok).toBe(true)
+    const snap = await nextMessage<{ type: string; room: { screen: { step: number }; stage: string; revealed: { volcanoes: boolean; firstGuesses: boolean } } }>(sa, (m) => m.type === 'snapshot' && (m as { room: { screen: { step: number } } }).room.screen.step === 6)
+    expect(snap.room.stage).toBe('volcanoReveal')
+    expect(snap.room.revealed.volcanoes).toBe(true)
+    expect(snap.room.revealed.firstGuesses).toBe(true)
+    // 화면 응답 저장
+    const resp = await send(sa, { type: 'saveResponses', responses: { 'observe-world': { text: '띠처럼 모여 있다', choices: ['특정한 곳에 띠처럼 길게 이어진다'], updatedAt: Date.now() } } })
+    expect(resp.ok).toBe(true)
+    const rep = await SELF.fetch(`${ORIGIN}/api/rooms/${code}/report/${a.body.participantId}`, { headers: { cookie: a.cookie } })
+    const body = (await rep.json()) as { record: { responses: Record<string, { text: string }> } }
+    expect(body.record.responses['observe-world'].text).toBe('띠처럼 모여 있다')
+    sa.close(); st.close()
+  })
+})
+
 describe('만료 알람', () => {
   it('만료 시각이 지나면 자료가 정리된다', async () => {
     const room = await createRoom({ ttlMs: 30 * 60 * 1000 })

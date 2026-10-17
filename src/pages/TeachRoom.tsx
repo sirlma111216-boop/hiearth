@@ -2,9 +2,10 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import QRCode from 'qrcode'
-import type { Stage, ViewState, MapMode, InquiryRecord, ParticipantPublic } from '@shared/domain/types'
-import { STAGES } from '@shared/domain/types'
+import type { ViewState, MapMode, InquiryRecord, ParticipantPublic } from '@shared/domain/types'
 import { STAGE_INFO, checklist } from '@shared/domain/activity'
+import { LESSON_STEPS, SUBS, screenAt, type ScreenRef } from '@shared/domain/lesson'
+import { LessonShell } from '../lesson/LessonShell'
 import { formatKst } from '@shared/geo/time'
 import type { TeacherSnapshot, NoticeMessage } from '@shared/protocol/messages'
 import { useLesson, LoadingScreen } from '../data/useLesson'
@@ -19,7 +20,7 @@ import { Button } from '../ui/Button'
 import { Dialog } from '../ui/Dialog'
 import { Icon } from '../ui/Icon'
 import { useToast } from '../ui/Toast'
-import { Workspace, type RoomContext } from '../workspace/Workspace'
+import type { RoomContext } from '../workspace/Workspace'
 import { audio } from '../audio/AudioManager'
 
 type Tab = 'lobby' | 'run' | 'results'
@@ -98,7 +99,7 @@ function TeachRoomInner({ code, data, initial }: { code: string; data: LessonDat
     }
   }, [toast])
 
-  const setStage = (s: Stage) => { void send({ type: 'teacher:setStage', stage: s }); void audio.play('ui-tap') }
+  const setScreen = (ref: ScreenRef) => { void send({ type: 'teacher:setScreen', screen: ref }); void audio.play('ui-tap') }
   const room = snap.room
   const visibleParticipants = useMemo(() => snap.participants.filter((p) => !groupFilter || p.group === groupFilter), [snap.participants, groupFilter])
   const roomCtx: RoomContext = { meta: room, sharedGuesses: groupFilter ? snap.sharedGuesses.filter((g) => g.group === groupFilter) : snap.sharedGuesses, highlighted: snap.highlighted, connection: conn, queued: 0, participantCount: snap.participants.length, myParticipantId: null }
@@ -129,13 +130,14 @@ function TeachRoomInner({ code, data, initial }: { code: string; data: LessonDat
       <div className="tiny muted num">만료 {formatKst(room.expiresAt)} · 만료 전 결과를 내려받으세요 · 상태 {room.status === 'open' ? '진행 중' : '종료'}</div>
 
       <section className="stack" style={{ gap: 6 }}>
-        <div className="label">활동 단계</div>
+        <div className="label">수업 단계 · 지금 <span className="num">{room.screen.step}-{room.screen.sub}</span> {screenAt(room.screen.step, room.screen.sub)?.title}</div>
         <div className="stage-list">
-          {STAGES.map((s) => { const i = STAGE_INFO[s]; const cur = room.stage === s; const done = STAGE_INFO[room.stage].index > i.index; return (
-            <button key={s} type="button" className={'stage-item' + (cur ? ' is-current' : done ? ' is-done' : '')} onClick={() => setStage(s)} aria-current={cur ? 'step' : undefined} disabled={room.status !== 'open'}>
-              <span className="n">{i.index + 1}</span><span>{i.short} · <span className="tiny muted">{i.title}</span></span>
+          {LESSON_STEPS.map((s) => { const cur = room.screen.step === s.n; const done = room.screen.step > s.n; return (
+            <button key={s.n} type="button" className={'stage-item' + (cur ? ' is-current' : done ? ' is-done' : '')} onClick={() => setScreen({ step: s.n, sub: 1 })} aria-current={cur ? 'step' : undefined} disabled={room.status !== 'open'} title={s.long}>
+              <span className="n">{s.n}</span><span>{s.short} · <span className="tiny muted">{s.long}</span>{cur ? <span className="tiny muted"> · {room.screen.sub}/{SUBS[s.n]}</span> : null}</span>
             </button>) })}
         </div>
+        <span className="hint">가운데 화면의 이전/다음으로 한 화면씩 넘기면 학생 화면이 따라옵니다. 활동 상태({STAGE_INFO[room.stage].short})는 화면에 맞춰 자동으로 바뀝니다.</span>
       </section>
 
       <section className="stack" style={{ gap: 8 }}>
@@ -216,7 +218,7 @@ function TeachRoomInner({ code, data, initial }: { code: string; data: LessonDat
           ) : tab === 'results' && !presentation ? (
             <ResultsTable records={records} room={room} code={code} onReload={loadRecords} />
           ) : (
-            <Workspace data={data} state={wsState} dispatch={wsDispatch} role="teacher" room={roomCtx} onSubmit={() => {}} onStage={setStage}
+            <LessonShell role="teacher" data={data} state={wsState} dispatch={wsDispatch} screen={room.screen} onScreen={setScreen} room={roomCtx} onSubmit={() => {}}
               onExplanation={() => {}} startRegion={room.startRegion} presentation={presentation} onPresentation={setPresentation}
               onShareView={(view: ViewState, mode: MapMode, force: boolean) => { void send({ type: 'teacher:syncView', view, mode, force }); toast.push(force ? '모든 학생의 지도를 이곳으로 이동시켰습니다.' : '따라가기를 켠 학생에게 조건을 공유했습니다.') }} />
           )}

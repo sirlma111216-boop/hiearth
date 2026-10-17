@@ -66,3 +66,14 @@ Durable Object RoomDO (worker/room.ts, SQLite)
 - 참가자 세션 쿠키 `eep_<CODE>`. 모든 HTTP/WS에서 역할과 방을 검증. 다른 방 쿠키·추측 ID·학생의 교사 이벤트는 거부됩니다(테스트: `tests/workers/room.test.ts`).
 - Origin/Sec-Fetch-Site 확인(상태 변경·WS), 메모리 토큰 버킷(생성 5/분, 입장 12/분, API 2/초) + DO 입장 시도 120/분, 메시지 1.6MB·본문 크기 제한, 별명 정리, CSV 수식 주입 방지.
 - 공개 자료의 클라이언트 숨김을 시험 보안으로 주장하지 않습니다. 공개 전 비노출은 서버가 스냅샷을 만들 때 결정합니다.
+
+## 수업 흐름 (`shared/domain/lesson.ts`, `src/lesson/`)
+
+학생이 처음부터 지도에 던져지지 않도록, 앱은 **10단계 24화면**의 수업 흐름으로 진행됩니다(1차시 1~5단계, 2차시 6~10단계). 단계·화면 번호의 단일 출처는 `LESSON_STEPS`/`LESSON_SCREENS` 표이며, 번호를 다른 곳에 적지 않습니다. 각 화면은 `kind`(narrative/content/activity/reflect/write/summary)와 연결된 활동 상태 `stage`를 갖습니다.
+
+- `LessonShell`: 단계 표시줄(차시 구분·완료 표시·잠김), 화면 카드, 이전/다음/건너뛰기, 소단계 점. 혼자 탐사·학생·교사가 같은 셸을 씁니다.
+- `screens.tsx`: 화면 id별 본문(설명·자기 분석·쓰기·결론)과 활동 화면의 과제 정의(`ACTIVITY_TASKS`: 질문·힌트·할 일·보이는 패널·초기 레이어·공개 카드·관찰 메모·선택 응답·교사 팁).
+- `ActivityFrame`: 과제 머리 + 끼워 넣은 `Workspace`(embedded, 패널 선택, `stageOverride`로 화면이 활동 상태를 정함) + 응답 입력.
+- 응답은 `InquiryRecord.responses[screenId]`에 저장되고(탐사실은 `saveResponses`로 서버에), 보고서 "관찰 기록과 자기 분석"에 실립니다.
+- 교실: 교사의 `teacher:setScreen`이 `RoomMeta.screen`과 활동 상태·공개를 함께 바꿉니다. 학생은 교사 화면까지만 갈 수 있고(`maxScreen`), 기본은 "따라가기"이며 끌 수 있습니다. 활동 화면에서 각자 작업 중에도 교사가 화면을 넘기면 따라가므로, 교사는 참가 현황의 제출 표시를 보고 넘깁니다.
+- 이동 조건: 4-2는 최초 추론 제출 후, 7-2는 수정 추론 제출 후에만 다음으로 갑니다. 설명 위주 화면은 건너뛰기가 있습니다.

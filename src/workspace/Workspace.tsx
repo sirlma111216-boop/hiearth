@@ -56,6 +56,16 @@ export interface WorkspaceProps {
   externalView?: { view: ViewState; animate: boolean; seq: number } | null
   reportHref?: string
   extraTop?: React.ReactNode
+  /** 수업 화면 카드 안에 끼워 넣을 때: 고정 배치 대신 부모 상자를 채운다 */
+  embedded?: boolean
+  /** 이 화면에서 보여 줄 패널. 기본은 모두 */
+  panels?: { banner?: boolean; evidence?: boolean; tools?: boolean; time?: boolean; mobileTabs?: boolean }
+  /** 이 화면에서 처음 들어올 때 보여 줄 공개 장면 */
+  reveal?: 'volcano' | 'boundary' | null
+  /** 처음 켤 레이어 (지정한 것만 덮어씀) */
+  initialLayers?: Partial<Record<LayerId, boolean>>
+  /** 수업 화면이 정하는 활동 상태 (기록의 stage 대신 사용) */
+  stageOverride?: Stage
 }
 
 type Sheet = null | 'evidence' | 'tools' | 'time' | 'layers'
@@ -64,7 +74,7 @@ export function Workspace(p: WorkspaceProps) {
   const toast = useToast()
   const settings = useSettings()
   const { data, state, dispatch, role } = p
-  const stage = state.record.stage
+  const stage = p.stageOverride ?? state.record.stage
   const info = STAGE_INFO[stage]
   const roomMeta = p.room?.meta
   const maxStage: Stage = role === 'student' && roomMeta ? roomMeta.stage : 'wrapUp'
@@ -73,7 +83,8 @@ export function Workspace(p: WorkspaceProps) {
   const mapRef = useRef<MapViewHandle>(null)
   const [mapMode, setMapMode] = useState<MapMode>(settings.lowPower ? '2d' : settings.preferredMapMode)
   const [interactionMode, setInteractionMode] = useState<'move' | 'draw'>('move')
-  const [layers, setLayers] = useState<Record<LayerId, boolean>>({ ...ALL_LAYERS })
+  const [layers, setLayers] = useState<Record<LayerId, boolean>>({ ...ALL_LAYERS, ...(p.initialLayers ?? {}) })
+  const show = { banner: true, evidence: true, tools: true, time: true, mobileTabs: true, ...(p.panels ?? {}) }
   const [minMag, setMinMag] = useState(0)
   const [pick, setPick] = useState<MapPick>(null)
   const [leftOpen, setLeftOpen] = useState(true)
@@ -135,8 +146,9 @@ export function Workspace(p: WorkspaceProps) {
   useEffect(() => {
     if (info.volcanoes && volcanoesAllowed) setLayers((l) => ({ ...l, volcanoes: true }))
     if (info.boundaries && boundariesAllowed) setLayers((l) => ({ ...l, plates: true }))
-    if (stage === 'volcanoReveal' && volcanoesAllowed && !seenReveal.current.has('volcano')) { seenReveal.current.add('volcano'); setReveal('volcano'); void audio.play('evidence-reveal') }
-    if (stage === 'boundaryCompare' && boundariesAllowed && !seenReveal.current.has('boundary')) { seenReveal.current.add('boundary'); setReveal('boundary'); void audio.play('boundary-reveal') }
+    const wantReveal = p.reveal === undefined ? (stage === 'volcanoReveal' ? 'volcano' : stage === 'boundaryCompare' ? 'boundary' : null) : p.reveal
+    if (wantReveal === 'volcano' && stage === 'volcanoReveal' && volcanoesAllowed && !seenReveal.current.has('volcano')) { seenReveal.current.add('volcano'); setReveal('volcano'); void audio.play('evidence-reveal') }
+    if (wantReveal === 'boundary' && stage === 'boundaryCompare' && boundariesAllowed && !seenReveal.current.has('boundary')) { seenReveal.current.add('boundary'); setReveal('boundary'); void audio.play('boundary-reveal') }
     if (stage === 'wrapUp') void audio.play('report-ready')
     if (info.drawing === 'none') setInteractionMode('move')
     else setInteractionMode('draw')
@@ -275,19 +287,19 @@ export function Workspace(p: WorkspaceProps) {
   const nextDisabledReason = role === 'solo' && stage === 'firstGuess' && !state.record.firstGuess ? '최초 추론을 제출하면 다음으로 넘어갈 수 있습니다' : undefined
 
   return (
-    <div className={'workspace' + (presentation ? ' presentation' : '')}>
+    <div className={'workspace' + (presentation ? ' presentation' : '') + (p.embedded ? ' embedded' : '')}>
       <div className="workspace-bg" aria-hidden="true"><img src="/images/workspace-atmosphere.webp" alt="" /></div>
 
       <MapView ref={mapRef} mode={mapMode} scene={scene} interaction={interaction} events={events} initialView={initialView} requestedView={requestedView}
         onModeFallback={(reason) => { setMapMode('2d'); toast.push(reason, 'info') }} />
 
-      {!presentation ? (
+      {!presentation && show.banner ? (
         <StageBanner stage={stage} maxStage={maxStage} onStage={p.onStage} nextDisabledReason={nextDisabledReason} role={role} />
       ) : null}
 
       {/* 왼쪽 레일: 패널 토글 + 지도 모드 */}
       <div className="ws-rail" role="toolbar" aria-label="지도 도구">
-        {!presentation ? <Button size="sm" variant="quiet" icon="evidence" active={leftOpen} onClick={() => setLeftOpen((v) => !v)} aria-label="증거 서랍 열기/닫기" title="증거 서랍" className="hide-mobile" /> : null}
+        {!presentation && show.evidence ? <Button size="sm" variant="quiet" icon="evidence" active={leftOpen} onClick={() => setLeftOpen((v) => !v)} aria-label="증거 서랍 열기/닫기" title="증거 서랍" className="hide-mobile" /> : null}
         <Button size="sm" variant="quiet" icon={mapMode === '3d' ? 'map' : 'globe'} onClick={() => switchMode(mapMode === '3d' ? '2d' : '3d')} aria-label={mapMode === '3d' ? '2D 지도로 전환' : '3D 지구본으로 전환'} title={mapMode === '3d' ? '2D 지도' : '3D 지구본'} />
         <select className="select" style={{ minHeight: 40, padding: '4px 8px', fontSize: 13, width: 'auto' }} aria-label="탐구 위치 프리셋" value="" onChange={(e) => { const pr = REGION_PRESETS.find((x) => x.id === e.target.value); if (pr) requestView({ center: pr.view.center, zoom: pr.view.zoom * portraitFactor }) }}>
           <option value="">위치 이동…</option>
@@ -304,11 +316,11 @@ export function Workspace(p: WorkspaceProps) {
         ) : null}
       </div>
       <div className="ws-rail ws-rail-right">
-        {!presentation && role !== 'teacher' ? <Button size="sm" variant="quiet" icon="draw" active={rightOpen} onClick={() => setRightOpen((v) => !v)} aria-label="추론 도구 열기/닫기" title="추론 도구" /> : null}
+        {!presentation && role !== 'teacher' && show.tools ? <Button size="sm" variant="quiet" icon="draw" active={rightOpen} onClick={() => setRightOpen((v) => !v)} aria-label="추론 도구 열기/닫기" title="추론 도구" /> : null}
         {p.onPresentation ? <Button size="sm" variant="quiet" icon={presentation ? 'compress' : 'expand'} onClick={() => p.onPresentation?.(!presentation)} aria-label={presentation ? '발표 모드 종료' : '전체화면 발표'} title={presentation ? '발표 모드 종료 (Esc)' : '전체화면 발표'} /> : null}
       </div>
 
-      {!presentation ? (
+      {!presentation && show.evidence ? (
         <aside className={'ws-left' + (leftOpen ? '' : ' is-closed')} aria-label="증거 서랍">
           <EvidenceDrawer lesson={data} recent={recent} choice={choice} onChoice={setChoice} onRefreshRecent={() => void refreshRecent(choice.feed)}
             layers={layers} layerAvailability={layerAvailability} onLayer={(id, on) => setLayers((l) => ({ ...l, [id]: on }))}
@@ -319,7 +331,7 @@ export function Workspace(p: WorkspaceProps) {
         </aside>
       ) : null}
 
-      {!presentation && role !== 'teacher' ? (
+      {!presentation && role !== 'teacher' && show.tools ? (
         <aside className={'ws-right' + (rightOpen ? '' : ' is-closed')} aria-label="추론 도구">
           <InferencePanel state={state} stage={stage} mode={interactionMode} onMode={(m) => { setInteractionMode(m); mapRef.current?.focus() }} onDrawMode={(m) => dispatch({ type: 'draft/setMode', mode: m })}
             onUndo={() => dispatch({ type: 'draft/undoPoint' })} onRedo={() => dispatch({ type: 'draft/redo' })} onDeleteSelected={() => dispatch({ type: 'draft/deleteSelected' })} onClear={() => dispatch({ type: 'draft/clear' })}
@@ -329,23 +341,23 @@ export function Workspace(p: WorkspaceProps) {
         </aside>
       ) : null}
 
-      <div className="ws-bottom">
+      {show.time ? <div className="ws-bottom">
         <TimeControls times={times} range={timeRangeAll} state={playback.state} visibleCount={visibleCount} totalCount={earthquakes.length}
-          onPlay={playback.play} onPause={playback.pause} onRewind={playback.rewind} onSeek={playback.seek} onMode={playback.setMode} onSpeed={playback.setSpeed} onWindowDays={playback.setWindowDays} compact={presentation} />
-      </div>
+          onPlay={playback.play} onPause={playback.pause} onRewind={playback.rewind} onSeek={playback.seek} onMode={playback.setMode} onSpeed={playback.setSpeed} onWindowDays={playback.setWindowDays} compact={presentation || !!p.embedded} />
+      </div> : null}
 
       {pickedItem ? <InfoPanel item={pickedItem} onClose={() => setPick(null)} /> : null}
 
       {reveal ? <RevealScene kind={reveal} versionText={versionText} onClose={() => setReveal(null)} /> : null}
 
       {/* 모바일: 하단 탭 + 시트 */}
-      {!presentation ? (
+      {!presentation && show.mobileTabs ? (
         <>
           <nav className="mobile-tabs" aria-label="모바일 패널">
             <Button variant="quiet" icon="map" active={sheet === null} onClick={() => setSheet(null)}>지도</Button>
-            <Button variant="quiet" icon="evidence" active={sheet === 'evidence'} onClick={() => setSheet(sheet === 'evidence' ? null : 'evidence')}>증거</Button>
-            {role !== 'teacher' ? <Button variant="quiet" icon="draw" active={sheet === 'tools'} onClick={() => setSheet(sheet === 'tools' ? null : 'tools')}>추론</Button> : null}
-            <Button variant="quiet" icon="info" onClick={() => toast.push(`${info.title} — ${info.guidance}`)}>안내</Button>
+            {show.evidence ? <Button variant="quiet" icon="evidence" active={sheet === 'evidence'} onClick={() => setSheet(sheet === 'evidence' ? null : 'evidence')}>증거</Button> : null}
+            {role !== 'teacher' && show.tools ? <Button variant="quiet" icon="draw" active={sheet === 'tools'} onClick={() => setSheet(sheet === 'tools' ? null : 'tools')}>추론</Button> : null}
+            {show.banner ? <Button variant="quiet" icon="info" onClick={() => toast.push(`${info.title} — ${info.guidance}`)}>안내</Button> : null}
           </nav>
           <div className={'sheet' + (sheet ? ' is-open' : '')} role="dialog" aria-label={sheet === 'evidence' ? '증거 서랍' : '추론 도구'} aria-hidden={!sheet}>
             <div className="sheet-handle" />

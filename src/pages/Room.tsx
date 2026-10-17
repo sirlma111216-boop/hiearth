@@ -1,18 +1,20 @@
-// 학생 탐사실 — 서버가 권위를 갖는 교실 상태 + 내 기록.
+// 학생 탐사실 — 서버가 권위를 갖는 교실 상태 + 내 기록. 선생님 화면을 따라가되 끌 수 있다.
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import type { Evidence, GuessKind, Stage } from '@shared/domain/types'
+import type { Evidence, GuessKind, InquiryRecord } from '@shared/domain/types'
 import { STAGE_INFO } from '@shared/domain/activity'
+import { screenAt, screenLE, type ScreenRef } from '@shared/domain/lesson'
 import type { NoticeMessage, StudentSnapshot } from '@shared/protocol/messages'
 import { useLesson, LoadingScreen } from '../data/useLesson'
 import type { LessonData } from '../data/lesson'
 import { emptyDraft, makeRevision, reducer, type InquiryState } from '../inquiry/engine'
 import { loadRoomInfo, loadRoomRecord, saveRoomRecord } from '../inquiry/localStore'
+import { LessonShell } from '../lesson/LessonShell'
 import { RoomClient, type ConnectionState } from '../realtime/RoomClient'
 import { api, ApiError } from '../realtime/api'
 import { TopBar } from '../ui/TopBar'
 import { useToast } from '../ui/Toast'
-import { Workspace, type RoomContext } from '../workspace/Workspace'
+import type { RoomContext } from '../workspace/Workspace'
 import { audio } from '../audio/AudioManager'
 import { Button } from '../ui/Button'
 
@@ -48,7 +50,7 @@ function RoomInner({ code, data, initial }: { code: string; data: LessonData; in
   const toast = useToast()
   const navigate = useNavigate()
   const [state, dispatch] = useReducer(reducer, initial, (s): InquiryState => ({
-    record: { ...(s.record.evidence.length || s.record.explanation ? s.record : (loadRoomRecord(code) ?? s.record)), ...s.record, stage: s.record.stage ?? s.room.stage },
+    record: { ...(loadRoomRecord(code) ?? s.record), ...s.record },
     draft: emptyDraft('freehand'),
     submit: { kind: null, status: 'idle', message: null },
   }))
@@ -56,22 +58,33 @@ function RoomInner({ code, data, initial }: { code: string; data: LessonData; in
   const [conn, setConn] = useState<ConnectionState>('idle')
   const [queued, setQueued] = useState(0)
   const [closed, setClosed] = useState<{ code: number; reason: string } | null>(null)
+  const [screen, setScreen] = useState<ScreenRef>(initial.room.screen)
+  const [following, setFollowing] = useState(true)
   const clientRef = useRef<RoomClient | null>(null)
   const local = loadRoomInfo(code)
 
-  // 스냅샷은 통째로 받아 들인다. 내 기록은 서버 사본을 권위로 하되 작성 중인 초안은 유지한다.
+  // 스냅샷은 통째로 받아들인다. 내 기록은 서버 사본이 권위, 작성 중인 초안은 유지.
   const applySnapshot = useCallback((s: StudentSnapshot) => {
     setSnap(s)
-    dispatch({ type: 'record/replace', record: { ...s.record, stage: s.record.stage } })
+    dispatch({ type: 'record/replace', record: s.record as InquiryRecord })
     saveRoomRecord(code, s.record)
   }, [code])
+
+  // 선생님 화면 따라가기 (입력 중이면 뺏지 않는다: 활동 화면은 각자 속도)
+  const teacherScreen = snap.room.screen
+  useEffect(() => {
+    if (!following) return
+    if (screen.step === teacherScreen.step && screen.sub === teacherScreen.sub) return
+    setScreen(teacherScreen)
+    window.scrollTo({ top: 0 })
+  }, [teacherScreen, following]) // screen은 의도적으로 제외: 따라가기 중일 때만 교사 화면을 적용
 
   useEffect(() => {
     const client = new RoomClient({
       code, as: 'student',
       onSnapshot: (s) => { if (s.role === 'student') applySnapshot(s) },
       onNotice: (n: NoticeMessage) => {
-        if (n.code === 'stageChanged' && n.stage) { toast.push(`선생님이 '${STAGE_INFO[n.stage].short}' 활동을 열었습니다.`); void audio.play('gentle-attention') }
+        if (n.code === 'screenChanged' || n.code === 'stageChanged') { toast.push(n.message); void audio.play('gentle-attention') }
         else if (n.code === 'reveal') { toast.push(n.message); void audio.play('gentle-attention') }
         else if (n.code === 'removed' || n.code === 'ended' || n.code === 'expired' || n.code === 'deleted') toast.push(n.message, 'danger')
         else toast.push(n.message)
@@ -109,11 +122,13 @@ function RoomInner({ code, data, initial }: { code: string; data: LessonData; in
     }
   }, [state.draft, data.datasetVersion, send, toast])
 
-  const onStage = useCallback((s: Stage) => {
-    dispatch({ type: 'setStage', stage: s })
+  const onScreen = useCallback((ref: ScreenRef) => {
+    if (!screenLE(ref, snap.room.screen)) return
+    setScreen(ref)
     dispatch({ type: 'submit/reset' })
-    send({ type: 'setStage', stage: s }).catch(() => { /* 서버가 거부하면 스냅샷이 되돌린다 */ })
-  }, [send])
+    // 직접 다른 화면으로 가면 따라가기는 잠시 꺼지고, 다시 켜면 합류한다
+    if (ref.step !== teacherScreen.step || ref.sub !== teacherScreen.sub) setFollowing(false)
+  }, [snap.room.screen, teacherScreen])
 
   const evidenceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const onEvidenceChange = useCallback((list: Evidence[]) => {
@@ -123,13 +138,17 @@ function RoomInner({ code, data, initial }: { code: string; data: LessonData; in
     }, 800)
   }, [send, toast])
 
+  const onResponses = useCallback((responses: NonNullable<InquiryRecord['responses']>) => {
+    send({ type: 'saveResponses', responses }).then((ack) => { if (!ack.ok) toast.push(ack.error?.message ?? '응답 저장 실패', 'danger') }).catch(() => { /* 재연결 시 재전송 */ })
+  }, [send, toast])
+
   const onExplanation = useCallback((text: string, limitations: string) => {
     dispatch({ type: 'explanation/set', text, limitations })
-    send({ type: 'saveExplanation', explanation: { text, limitations } }).then((ack) => toast.push(ack.ok ? '설명이 서버에 저장되었습니다.' : (ack.error?.message ?? '저장 실패'), ack.ok ? 'success' : 'danger')).catch(() => toast.push('연결이 끊겨 전송 대기 중입니다.', 'info'))
+    send({ type: 'saveExplanation', explanation: { text, limitations } }).then((ack) => toast.push(ack.ok ? '서버에 저장되었습니다.' : (ack.error?.message ?? '저장 실패'), ack.ok ? 'success' : 'danger')).catch(() => toast.push('연결이 끊겨 전송 대기 중입니다.', 'info'))
   }, [send, toast])
 
   const room: RoomContext = { meta: snap.room, sharedGuesses: snap.sharedGuesses, highlighted: [], connection: conn, queued, participantCount: snap.participantCount, myParticipantId: snap.me.id }
-  const stageInfo = STAGE_INFO[snap.room.stage]
+  const def = screenAt(screen.step, screen.sub)
 
   if (closed) {
     const msg = closed.code === 4001 ? '탐사실 보관 기간이 끝나 접속이 닫혔습니다.' : closed.code === 4003 ? '선생님이 탐사실을 삭제했습니다.' : closed.code === 4004 ? '선생님이 탐사실에서 내보냈습니다.' : '탐사실이 종료되어 접속이 닫혔습니다.'
@@ -150,10 +169,11 @@ function RoomInner({ code, data, initial }: { code: string; data: LessonData; in
 
   return (
     <>
-      <TopBar center={<span className="status-pill"><strong>{snap.room.title}</strong> · {stageInfo.short} · {local?.nickname ?? snap.me.nickname}</span>} />
-      <Workspace data={data} state={state} dispatch={dispatch} role="student" room={room} onSubmit={(k) => void onSubmit(k)} onStage={onStage}
-        onEvidenceChange={onEvidenceChange} onExplanation={onExplanation} startRegion={snap.room.startRegion}
-        reportHref={`/report/${code}?p=${snap.me.id}`} />
+      <TopBar center={<span className="status-pill"><strong>{snap.room.title}</strong> · {def?.title ?? STAGE_INFO[snap.room.stage].short} · {local?.nickname ?? snap.me.nickname}</span>} />
+      <LessonShell role="student" data={data} state={state} dispatch={dispatch} screen={screen} onScreen={onScreen} maxScreen={snap.room.screen}
+        following={following} onFollow={(v) => { setFollowing(v); if (v) setScreen(snap.room.screen) }}
+        room={room} onSubmit={(k) => void onSubmit(k)} onEvidenceChange={onEvidenceChange} onExplanation={onExplanation} onResponses={onResponses}
+        startRegion={snap.room.startRegion} reportHref={`/report/${code}?p=${snap.me.id}`} nickname={snap.me.nickname} />
     </>
   )
 }

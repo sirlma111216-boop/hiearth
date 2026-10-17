@@ -445,3 +445,99 @@ table.data th { color: var(--muted); font-weight: 600; font-size: 13px; }
 
 /* 모바일: 제목 블록의 transform 애니메이션이 절대 위치 버튼의 기준 상자가 되지 않도록 투명도만 움직인다 */
 @media (max-width: 760px) { .hero-copy { animation: fade-in 700ms var(--ease) both; } }
+
+
+/* ===== 수업 화면 안에 끼워 넣은 작업 공간 ===== */
+.workspace.embedded { position: absolute; inset: 0; }
+.workspace.embedded .workspace-map { inset: 0; }
+.workspace.embedded .ws-left, .workspace.embedded .ws-right { top: 12px; bottom: 96px; }
+.workspace.embedded .ws-rail, .workspace.embedded .ws-rail-right { top: 12px; }
+.workspace.embedded .ws-conn { top: 60px !important; }
+.workspace.embedded .info-panel { bottom: 108px; }
+.workspace.embedded .reveal-scene { inset: 0; }
+@media (max-width: 900px) {
+  .workspace.embedded .ws-rail, .workspace.embedded .ws-rail-right { top: 8px; }
+  .workspace.embedded .ws-conn { top: 52px !important; }
+  .workspace.embedded .ws-bottom { bottom: calc(60px + var(--safe-b)); }
+}
+
+/* ===== 수업 셸 (단계 표시줄 + 화면 카드 + 이전/다음) ===== */
+.lesson { min-height: 100svh; padding-top: var(--topbar-h); display: flex; flex-direction: column; background: var(--bg); }
+.stepbar { display: flex; align-items: stretch; gap: 6px; padding: 10px 16px; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--line); background: rgba(13,34,44,0.6); }
+.stepbar::-webkit-scrollbar { display: none; }
+.sb-split { display: flex; align-items: center; padding: 0 8px 0 10px; color: var(--brass); font-size: 11px; letter-spacing: 0.12em; font-weight: 700; white-space: nowrap; border-left: 1px solid var(--line-strong); }
+.sb-split.is-first { border-left: 0; padding-left: 0; }
+.sb-item { flex: 1 0 auto; min-width: 72px; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); background: rgba(7,21,30,0.5); color: var(--muted); cursor: pointer; font: inherit; min-height: 48px; }
+.sb-item .sb-num { font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 3px; }
+.sb-item .sb-label { font-size: 13px; font-weight: 600; white-space: nowrap; }
+.sb-item:hover { color: var(--text); border-color: var(--line-strong); }
+.sb-item.is-done { color: var(--muted-strong); }
+.sb-item.is-done .sb-num::after { content: '✓'; color: var(--primary); font-size: 11px; }
+.sb-item.is-now { background: var(--primary); color: var(--primary-ink); border-color: var(--primary); }
+.sb-item.is-locked { opacity: 0.45; cursor: not-allowed; }
+.lesson-main { flex: 1; width: min(1180px, 100%); margin: 0 auto; padding: 20px 16px 120px; }
+.screen-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+.screen-head .kicker { color: var(--brass); font-size: 12px; letter-spacing: 0.14em; font-weight: 650; }
+.screen-head h1 { font-size: clamp(22px, 2.4vw, 30px); margin-top: 4px; }
+.screen-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: clamp(20px, 3vw, 40px); animation: fade-in 300ms var(--ease); }
+.screen-card.is-narrative { min-height: 60vh; display: grid; place-items: center; text-align: center; background: radial-gradient(ellipse at 50% 40%, #0d2a3a 0%, #07151e 70%); cursor: pointer; }
+.narr-lines p { font-size: clamp(22px, 2.6vw, 34px); font-weight: 700; line-height: 1.5; opacity: 0; transform: translateY(8px); transition: opacity 500ms var(--ease), transform 500ms var(--ease); margin: 8px 0; }
+.narr-lines p.is-on { opacity: 1; transform: none; }
+.narr-lines p.is-dim { opacity: 0.35; }
+.narr-hint { color: var(--muted); font-size: 13px; margin-top: 24px; }
+.screen-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 24px; align-items: start; }
+.screen-grid figure { margin: 0; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: var(--raised); }
+.screen-grid figure img { width: 100%; height: 280px; object-fit: cover; }
+.screen-grid figcaption { padding: 8px 12px; font-size: 12px; color: var(--muted); }
+.callout { border-left: 3px solid var(--primary); background: rgba(102,216,193,0.08); padding: 12px 16px; border-radius: 0 12px 12px 0; margin-top: 16px; }
+.callout.brass { border-left-color: var(--brass); background: rgba(210,175,117,0.08); }
+.callout strong { display: block; margin-bottom: 4px; }
+.prose-lg p { font-size: 17px; line-height: 1.8; }
+.prose-lg p + p { margin-top: 14px; }
+.prose-lg em { font-style: normal; color: var(--primary-strong); font-weight: 650; }
+.prose-lg mark { background: rgba(210,175,117,0.2); color: var(--text); padding: 0 4px; border-radius: 4px; }
+.q-list { list-style: none; padding: 0; margin: 16px 0 0; display: grid; gap: 10px; }
+.q-list li { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; background: rgba(7,21,30,0.5); font-size: 17px; }
+.q-list .q-no { color: var(--brass); font-weight: 700; font-variant-numeric: tabular-nums; }
+.task { display: grid; grid-template-columns: 1fr auto; gap: 12px 24px; align-items: start; margin-bottom: 12px; }
+.task h2 { font-size: 18px; }
+.task p { color: var(--muted-strong); font-size: 15px; margin-top: 4px; }
+.task .task-steps { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); min-width: 220px; }
+.task .task-steps span { display: flex; gap: 6px; align-items: center; }
+.task .task-steps .ok { color: var(--primary); }
+.activity-stage { position: relative; height: clamp(520px, 66vh, 840px); border-radius: 18px; overflow: hidden; border: 1px solid var(--line-strong); background: var(--bg); }
+.response { margin-top: 14px; display: grid; grid-template-columns: 1fr; gap: 10px; }
+.response .label { font-size: 15px; color: var(--text); }
+.choice-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; }
+.choice { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; cursor: pointer; font-size: 15px; background: rgba(7,21,30,0.4); min-height: 48px; }
+.choice input { margin-top: 3px; accent-color: var(--primary); width: 18px; height: 18px; flex: none; }
+.choice.is-on { border-color: rgba(102,216,193,0.6); background: rgba(102,216,193,0.08); }
+.lesson-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; display: flex; align-items: center; justify-content: center; gap: 14px; padding: 10px 16px calc(10px + var(--safe-b)); background: rgba(7,21,30,0.94); border-top: 1px solid var(--line); backdrop-filter: blur(10px); }
+.lesson-nav .readout { font-size: 13px; color: var(--muted-strong); font-variant-numeric: tabular-nums; min-width: 150px; text-align: center; }
+.lesson-nav .btn-skip { position: absolute; right: 16px; }
+.sub-dots { display: flex; gap: 6px; justify-content: center; margin-top: 18px; }
+.sub-dots span { width: 7px; height: 7px; border-radius: 50%; background: var(--line-strong); }
+.sub-dots span.is-on { background: var(--primary); }
+.mini-map { border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: #0b2238; }
+.mini-map img { width: 100%; display: block; }
+.compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.evidence-strip { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; }
+.evidence-strip figure { margin: 0; flex: 0 0 180px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--raised); }
+.evidence-strip img { width: 100%; height: 110px; object-fit: cover; }
+.evidence-strip figcaption { padding: 6px 8px; font-size: 12px; color: var(--muted); }
+.teacher-hint { margin-top: 14px; padding: 10px 14px; border: 1px dashed rgba(210,175,117,0.5); border-radius: 12px; font-size: 13px; color: var(--muted-strong); }
+.teacher-hint strong { color: var(--brass); }
+@media (max-width: 760px) {
+  .screen-grid, .compare-grid { grid-template-columns: 1fr; }
+  .task { grid-template-columns: 1fr; }
+  .activity-stage { height: clamp(460px, 72svh, 700px); }
+  .lesson-main { padding: 12px 10px 110px; }
+  .screen-card { padding: 18px 16px; }
+  .lesson-nav .readout { min-width: 0; font-size: 12px; }
+  .lesson-nav .btn-skip { display: none; }
+  .sb-item { min-width: 60px; padding: 4px 8px; }
+  .sb-item .sb-label { font-size: 12px; }
+}
+
+/* 수업 화면 안의 작업 공간을 전체화면 발표로 */
+.workspace.embedded.presentation { position: fixed; inset: 0; z-index: 100; }

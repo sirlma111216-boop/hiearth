@@ -1,7 +1,7 @@
 // 탐사실 WebSocket/HTTP 메시지 규약 (버전 1).
 // 서버가 교실 상태의 권위를 갖는다. 클라이언트는 제출·명시적 공유 단위로만 보낸다.
 import { z } from 'zod'
-import { evidenceListSchema, explanationSchema, guessSchema, stageSchema, viewStateSchema } from '../domain/schemas'
+import { evidenceListSchema, explanationSchema, guessSchema, responsesSchema, screenRefSchema, stageSchema, viewStateSchema } from '../domain/schemas'
 import type { InquiryRecord, ParticipantPublic, RoomMeta, SharedGuess, Stage } from '../domain/types'
 
 export const PROTOCOL_VERSION = 1
@@ -17,11 +17,13 @@ export const studentMessageSchema = z.discriminatedUnion('type', [
   z.object({ ...base, type: z.literal('saveExplanation'), explanation: explanationSchema }),
   z.object({ ...base, type: z.literal('setGroup'), group: z.string().max(20).nullable() }),
   z.object({ ...base, type: z.literal('setStage'), stage: stageSchema }),
+  z.object({ ...base, type: z.literal('saveResponses'), responses: responsesSchema }),
   z.object({ ...base, type: z.literal('resync') }),
 ])
 
 export const teacherMessageSchema = z.discriminatedUnion('type', [
   z.object({ ...base, type: z.literal('teacher:setStage'), stage: stageSchema }),
+  z.object({ ...base, type: z.literal('teacher:setScreen'), screen: screenRefSchema }),
   z.object({ ...base, type: z.literal('teacher:reveal'), what: z.enum(['firstGuesses', 'volcanoes', 'boundaries', 'nicknames']), value: z.boolean() }),
   z.object({ ...base, type: z.literal('teacher:lockInput'), locked: z.boolean() }),
   z.object({ ...base, type: z.literal('teacher:lockJoin'), locked: z.boolean() }),
@@ -85,7 +87,7 @@ export interface NoticeMessage {
   type: 'notice'
   v: typeof PROTOCOL_VERSION
   serverTime: number
-  code: 'stageChanged' | 'reveal' | 'followView' | 'inputLocked' | 'inputUnlocked' | 'ended' | 'expired' | 'removed' | 'deleted'
+  code: 'stageChanged' | 'screenChanged' | 'reveal' | 'followView' | 'inputLocked' | 'inputUnlocked' | 'ended' | 'expired' | 'removed' | 'deleted'
   stage?: Stage
   message: string
 }

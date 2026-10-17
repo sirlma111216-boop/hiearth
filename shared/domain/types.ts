@@ -125,6 +125,13 @@ export interface Explanation {
   updatedAt: number
 }
 
+/** 화면별 학생 응답(관찰 메모·자기 분석 선택). key = 화면 id */
+export interface ScreenResponse {
+  text?: string
+  choices?: string[]
+  updatedAt: number
+}
+
 export interface StageHistoryEntry {
   stage: Stage
   at: number
@@ -140,6 +147,8 @@ export interface InquiryRecord {
   explanation: Explanation | null
   history: StageHistoryEntry[]
   datasetVersion: string
+  /** 화면별 응답 (없으면 빈 객체로 취급) */
+  responses?: Record<string, ScreenResponse>
 }
 
 export const MAX_EVIDENCE = 3
@@ -183,6 +192,8 @@ export interface RoomMeta {
   inputLocked: boolean
   revealed: { firstGuesses: boolean; volcanoes: boolean; boundaries: boolean; nicknames: boolean }
   followView: { view: ViewState; mode: MapMode; requestedAt: number; force: boolean } | null
+  /** 교사가 현재 보고 있는 수업 화면 (학생은 이 화면까지 갈 수 있다) */
+  screen: { step: number; sub: number }
   activityVersion: number
   roomRevision: number
 }

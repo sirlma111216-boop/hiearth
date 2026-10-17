@@ -46,6 +46,15 @@ export const explanationSchema = z.object({
 
 export const stageSchema = z.enum(STAGES)
 
+export const screenRefSchema = z.object({ step: z.number().int().min(1).max(20), sub: z.number().int().min(1).max(20) })
+
+export const screenResponseSchema = z.object({
+  text: z.string().max(600).optional(),
+  choices: z.array(z.string().max(40)).max(12).optional(),
+  updatedAt: z.number().int().nonnegative(),
+})
+export const responsesSchema = z.record(z.string().max(40), screenResponseSchema).refine((r) => Object.keys(r).length <= 40, { message: 'too many responses' })
+
 /** 별명: 공백 정리, 태그 문자 제거, 길이 제한 */
 export function sanitizeNickname(raw: string): string | null {
   const cleaned = raw

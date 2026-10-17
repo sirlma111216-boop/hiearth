@@ -6,6 +6,7 @@
 | 랜딩: 이미지 타이틀 장면, HTML 제목·버튼, 세 장면, 자료 기관, 최근 자료 확인 상태, 3D 미로딩 | `src/pages/Landing.tsx` | 완료 |
 | 혼자 탐사와 탐사실이 같은 엔진·데이터 형식 | `src/inquiry/engine.ts`, `src/workspace/Workspace.tsx` | 완료 |
 | 활동 상태 8단계, 중앙 관리, 되돌아가도 최초 추론 유지 | `shared/domain/activity.ts` | 완료 (단위 테스트) |
+| 수업 흐름 10단계 24화면(설명·활동·자기 분석·쓰기 혼합), 교사 화면 넘김·학생 따라가기 | `shared/domain/lesson.ts`, `src/lesson/*`, `teacher:setScreen` | 완료 (DO·E2E 테스트) |
 | 3D 지구본(실제 해안선, 짙은 남색 바다, 얇은 대기) | `src/map/Globe3D.ts`, `landTexture.ts` | 완료 |
 | 2D 지도 동등 기능, WebGL 미지원·유실 시 자동 전환, 상태 유지 | `src/map/MapView.tsx`, `Map2D.ts` | 완료 |
 | 위치 프리셋 5종, 교사 따라가기/모두 이곳 보기 | `shared/domain/presets.ts`, Workspace, `teacher:syncView` | 완료 |

@@ -4,6 +4,7 @@ import { DurableObject } from 'cloudflare:workers'
 import type { InquiryRecord, ParticipantPublic, RoomMeta, RoomSettings, SharedGuess, Stage, GuessRevision, Guess, Evidence } from '@shared/domain/types'
 import { MAX_EVIDENCE } from '@shared/domain/types'
 import { emptyRecord, isStage, stageIndex } from '@shared/domain/activity'
+import { FIRST_SCREEN, isValidScreen, screenStage, screenLabel } from '@shared/domain/lesson'
 import { csvCell, joinRequestSchema, roomSettingsSchema, sanitizeNickname } from '@shared/domain/schemas'
 import { checklist } from '@shared/domain/activity'
 import { studentMessageSchema, teacherMessageSchema, PROTOCOL_VERSION, type AckMessage, type NoticeMessage, type StudentSnapshot, type TeacherSnapshot, type ServerMessage } from '@shared/protocol/messages'
@@ -69,7 +70,10 @@ export class RoomDO extends DurableObject<Env> {
   private loadMeta(): RoomMeta | null {
     // 항상 저장소에서 읽는다: Hibernation·알람 이후 메모리 캐시가 오래될 수 있다
     const row = this.ctx.storage.sql.exec<{ v: string }>(`SELECT v FROM kv WHERE k = 'meta'`).toArray()[0]
-    this.meta = row ? (JSON.parse(row.v) as RoomMeta) : null
+    const meta = row ? (JSON.parse(row.v) as RoomMeta) : null
+    // 이전 버전에서 만든 탐사실: 화면 정보가 없으면 첫 화면으로
+    if (meta && !meta.screen) meta.screen = { ...FIRST_SCREEN }
+    this.meta = meta
     return this.meta
   }
 
@@ -148,6 +152,7 @@ export class RoomDO extends DurableObject<Env> {
       inputLocked: false,
       revealed: { firstGuesses: false, volcanoes: false, boundaries: false, nicknames: false },
       followView: null,
+      screen: { ...FIRST_SCREEN },
       activityVersion: ACTIVITY_VERSION,
       roomRevision: 1,
     }
@@ -646,6 +651,15 @@ export class RoomDO extends DurableObject<Env> {
         this.ack(ws, clientMessageId, true)
         return this.scheduleBroadcast()
       }
+      case 'saveResponses': {
+        if (meta.inputLocked) throw new RoomError(423, 'inputLocked', '선생님이 입력을 잠갔습니다.')
+        const rec = JSON.parse(p.record) as InquiryRecord
+        rec.responses = msg.responses
+        this.ctx.storage.sql.exec(`UPDATE participants SET record = ? WHERE id = ?`, JSON.stringify(rec), pid)
+        this.bump(meta, {})
+        this.ack(ws, clientMessageId, true)
+        return this.scheduleBroadcast()
+      }
       case 'setStage': {
         // 학생은 교사가 연 단계 이하에서만 자기 화면 단계를 바꿀 수 있다
         if (stageIndex(msg.stage) > stageIndex(meta.stage)) throw new RoomError(409, 'stageLocked', '선생님이 아직 다음 활동을 열지 않았습니다.')
@@ -670,6 +684,28 @@ export class RoomDO extends DurableObject<Env> {
       case 'resync':
         this.sendTo(ws, this.teacherSnapshot(meta))
         return this.ack(ws, clientMessageId, true)
+      case 'teacher:setScreen': {
+        if (!isValidScreen(msg.screen)) throw new RoomError(400, 'badScreen', '없는 화면입니다.')
+        const stage = screenStage(msg.screen)
+        // 화면이 가리키는 활동 상태로 맞추되, 이미 지나간 공개는 되돌리지 않는다
+        const revealed = { ...meta.revealed }
+        if (stageIndex(stage) >= stageIndex('firstReveal')) revealed.firstGuesses = true
+        if (stageIndex(stage) >= stageIndex('volcanoReveal')) revealed.volcanoes = true
+        if (stageIndex(stage) >= stageIndex('boundaryCompare')) revealed.boundaries = true
+        const next = this.bump(meta, { screen: { step: msg.screen.step, sub: msg.screen.sub }, stage, revealed })
+        for (const p of this.activeParticipants()) {
+          const rec = JSON.parse(p.record) as InquiryRecord
+          if (rec.stage !== stage) {
+            rec.stage = stage
+            rec.history = [...rec.history, { stage, at: Date.now() }]
+            this.ctx.storage.sql.exec(`UPDATE participants SET record = ? WHERE id = ?`, JSON.stringify(rec), p.id)
+          }
+        }
+        this.log('teacher', 'setScreen', msg.screen)
+        this.notice(students, 'screenChanged', `선생님이 '${screenLabel(msg.screen)}' 화면으로 이동했습니다.`, next.stage)
+        this.ack(ws, clientMessageId, true)
+        return this.scheduleBroadcast()
+      }
       case 'teacher:setStage': {
         if (!isStage(msg.stage)) throw new RoomError(400, 'badStage', '없는 단계입니다.')
         const revealed = { ...meta.revealed }

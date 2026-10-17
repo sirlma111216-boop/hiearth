@@ -24,6 +24,14 @@ export function clearLocalRecord() {
   try { localStorage.removeItem(LOCAL_KEY) } catch { /* noop */ }
 }
 
+const SCREEN_KEY = 'ee.local.screen.v1'
+export function loadLocalScreen(): { step: number; sub: number } | null {
+  try { const raw = localStorage.getItem(SCREEN_KEY); return raw ? (JSON.parse(raw) as { step: number; sub: number }) : null } catch { return null }
+}
+export function saveLocalScreen(s: { step: number; sub: number }) {
+  try { localStorage.setItem(SCREEN_KEY, JSON.stringify(s)) } catch { /* noop */ }
+}
+
 export interface RoomLocalInfo { code: string; participantId: string; nickname: string; joinedAt: number; title?: string }
 
 export function saveRoomInfo(info: RoomLocalInfo) {

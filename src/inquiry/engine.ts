@@ -52,6 +52,7 @@ export type Action =
   | { type: 'evidence/remove'; id: string }
   | { type: 'explanation/set'; text: string; limitations: string }
   | { type: 'record/replace'; record: InquiryRecord }
+  | { type: 'responses/set'; id: string; patch: { text?: string; choices?: string[] } }
 
 function pushUndo(d: DraftState): DraftState {
   return { ...d, undo: [...d.undo.slice(-30), d.lines], redo: [] }
@@ -143,6 +144,11 @@ export function reducer(state: InquiryState, a: Action): InquiryState {
       return { ...state, record: { ...record, explanation: { text: a.text, limitations: a.limitations, updatedAt: Date.now() } } }
     case 'record/replace':
       return { ...state, record: a.record }
+    case 'responses/set': {
+      const prev = record.responses ?? {}
+      const cur = prev[a.id] ?? { updatedAt: 0 }
+      return { ...state, record: { ...record, responses: { ...prev, [a.id]: { ...cur, ...a.patch, updatedAt: Date.now() } } } }
+    }
   }
 }
 
