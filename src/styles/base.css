@@ -541,3 +541,9 @@ table.data th { color: var(--muted); font-weight: 600; font-size: 13px; }
 
 /* 수업 화면 안의 작업 공간을 전체화면 발표로 */
 .workspace.embedded.presentation { position: fixed; inset: 0; z-index: 100; }
+
+/* 활동 화면은 넓게, 지도는 높게 */
+.lesson-main.is-activity { width: min(1520px, 100%); }
+.lesson-main.is-activity .activity-stage { height: clamp(560px, calc(100svh - 300px), 980px); }
+.workspace.embedded .ws-left, .workspace.embedded .ws-right { width: 300px; }
+.sb-split { display: none; }

@@ -22,21 +22,17 @@ export interface LessonStep {
   n: number
   short: string
   long: string
-  period: 1 | 2
-  first?: boolean
 }
 
 export const LESSON_STEPS: LessonStep[] = [
-  { n: 1, short: '시작', long: '흔들리는 지구', period: 1 },
-  { n: 2, short: '지진 자료', long: '점 하나가 지진 하나', period: 1 },
-  { n: 3, short: '관찰', long: '지진은 어디에 모여 있을까', period: 1 },
-  { n: 4, short: '추론', long: '경계를 그려 보자', period: 1 },
-  { n: 5, short: '돌아보기', long: '우리가 그린 선', period: 1 },
-  { n: 6, short: '화산', long: '새로운 증거, 화산', period: 2, first: true },
-  { n: 7, short: '수정', long: '증거로 생각 고치기', period: 2 },
-  { n: 8, short: '판의 경계', long: '연구 모형과 비교', period: 2 },
-  { n: 9, short: '설명', long: '근거 있는 설명 쓰기', period: 2 },
-  { n: 10, short: '결론', long: '무엇이 달라졌나', period: 2 },
+  { n: 1, short: '시작', long: '흔들리는 지구' },
+  { n: 2, short: '지진 자료', long: '점 하나가 지진 하나' },
+  { n: 3, short: '관찰', long: '지진은 어디에 모여 있을까' },
+  { n: 4, short: '추론', long: '경계를 그려 보자' },
+  { n: 5, short: '돌아보기', long: '우리가 그린 선' },
+  { n: 6, short: '화산·수정', long: '새 증거로 생각 고치기' },
+  { n: 7, short: '판의 경계', long: '연구 모형과 비교' },
+  { n: 8, short: '설명·결론', long: '근거 있는 설명과 정리' },
 ]
 
 const S = (id: string, step: number, sub: number, kind: ScreenKind, title: string, stage: Stage, skippable = false): LessonScreen => ({ id, step, sub, kind, title, stage, skippable })
@@ -62,19 +58,17 @@ export const LESSON_SCREENS: LessonScreen[] = [
   S('volcano-what', 6, 1, 'content', '화산은 어디에 있을까', 'volcanoReveal', true),
   S('volcano-open', 6, 2, 'activity', '화산 증거 열기', 'volcanoReveal'),
   S('volcano-compare', 6, 3, 'activity', '지진과 화산 겹쳐 보기', 'volcanoReveal'),
+  S('revise-why', 6, 4, 'content', '생각을 고치는 것은 실력이다', 'revise', true),
+  S('revise-draw', 6, 5, 'activity', '수정 추론 그리기', 'revise'),
 
-  S('revise-why', 7, 1, 'content', '생각을 고치는 것은 실력이다', 'revise', true),
-  S('revise-draw', 7, 2, 'activity', '수정 추론 그리기', 'revise'),
+  S('plate-what', 7, 1, 'content', '판과 판의 경계', 'boundaryCompare', true),
+  S('plate-open', 7, 2, 'activity', '판 경계 모형 열기', 'boundaryCompare'),
+  S('plate-reflect', 7, 3, 'reflect', '내 선과 모형 비교하기', 'boundaryCompare'),
 
-  S('plate-what', 8, 1, 'content', '판과 판의 경계', 'boundaryCompare', true),
-  S('plate-open', 8, 2, 'activity', '판 경계 모형 열기', 'boundaryCompare'),
-  S('plate-reflect', 8, 3, 'reflect', '내 선과 모형 비교하기', 'boundaryCompare'),
-
-  S('explain-write', 9, 1, 'write', '나의 설명', 'explain'),
-  S('explain-limits', 9, 2, 'write', '자료의 한계', 'explain'),
-
-  S('wrap-compare', 10, 1, 'summary', '처음 생각과 수정한 생각', 'wrapUp'),
-  S('wrap-card', 10, 2, 'summary', '탐구 카드', 'wrapUp'),
+  S('explain-write', 8, 1, 'write', '나의 설명', 'explain'),
+  S('explain-limits', 8, 2, 'write', '자료의 한계', 'explain'),
+  S('wrap-compare', 8, 3, 'summary', '처음 생각과 수정한 생각', 'wrapUp'),
+  S('wrap-card', 8, 4, 'summary', '탐구 카드', 'wrapUp'),
 ]
 
 export const LAST_STEP = LESSON_STEPS[LESSON_STEPS.length - 1].n
@@ -87,6 +81,9 @@ export const screenAt = (step: number, sub: number): LessonScreen | undefined =>
 export const screenById = (id: string): LessonScreen | undefined => LESSON_SCREENS.find((s) => s.id === id)
 export const screenIndex = (ref: ScreenRef): number => LESSON_SCREENS.findIndex((s) => s.step === ref.step && s.sub === ref.sub)
 export const isValidScreen = (v: unknown): v is ScreenRef => !!v && typeof v === 'object' && typeof (v as ScreenRef).step === 'number' && typeof (v as ScreenRef).sub === 'number' && !!screenAt((v as ScreenRef).step, (v as ScreenRef).sub)
+
+/** id로 화면 위치를 찾는다 (번호를 코드에 적지 않기 위해) */
+export const refOf = (id: string): ScreenRef => { const s = screenById(id); if (!s) throw new Error('없는 화면 id: ' + id); return { step: s.step, sub: s.sub } }
 
 export function clampScreen(ref: ScreenRef): ScreenRef {
   const step = Math.max(1, Math.min(LAST_STEP, Math.round(ref.step) || 1))

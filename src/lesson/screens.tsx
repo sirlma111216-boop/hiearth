@@ -50,7 +50,7 @@ export const ACTIVITY_TASKS: Record<string, ActivityTask> = {
     panels: { tools: false, time: true, evidence: true },
     initialLayers: { earthquakes: true },
     notePrompt: '세 지역의 띠는 서로 어떻게 다른가요? (굵기, 모양, 육지와의 관계)',
-    teacherTip: '점을 누르면 규모·깊이·원문 링크가 보입니다. "바다 한가운데 대서양에 왜 줄이 있을까?"를 질문으로 남겨 두면 8단계에서 이어집니다.',
+    teacherTip: '점을 누르면 규모·깊이·원문 링크가 보입니다. "바다 한가운데 대서양에 왜 줄이 있을까?"를 질문으로 남겨 두면 판의 경계 단계에서 이어집니다.',
   },
   'guess-draw': {
     question: '판의 경계가 있을 것 같은 곳에 선을 그려 보세요',
@@ -86,7 +86,7 @@ export const ACTIVITY_TASKS: Record<string, ActivityTask> = {
     panels: { tools: false, time: false, evidence: true },
     initialLayers: { earthquakes: true, volcanoes: true },
     notePrompt: '지진은 있는데 화산이 없는 곳, 또는 그 반대인 곳이 있나요? 어디인가요?',
-    teacherTip: '"대서양 가운데 줄에는 왜 화산이 적게 보일까?"(바다 밑이라 목록에 적다)와 "하와이는 띠 밖인데 왜 화산일까?"는 다음 시간 이야깃거리로 남겨 둡니다.',
+    teacherTip: '"대서양 가운데 줄에는 왜 화산이 적게 보일까?"(바다 밑이라 목록에 적다)와 "하와이는 띠 밖인데 왜 화산일까?"는 뒤 단계 이야깃거리로 남겨 둡니다.',
   },
   'revise-draw': {
     question: '화산 증거를 반영해 선을 고쳐 보세요',
@@ -129,10 +129,10 @@ function Narrative({ lines, onDone }: { lines: string[]; onDone: () => void }) {
   )
 }
 
-function Card({ children, kicker, title }: { children: ReactNode; kicker?: string; title?: string }) {
+function Card({ children, title }: { children: ReactNode; kicker?: string; title?: string }) {
   return (
     <>
-      {title ? <div className="screen-head"><div>{kicker ? <div className="kicker">{kicker}</div> : null}<h1>{title}</h1></div></div> : null}
+      {title ? <div className="screen-head"><div><h1>{title}</h1></div></div> : null}
       <div className="screen-card">{children}</div>
     </>
   )
@@ -261,7 +261,7 @@ export function renderScreen(id: string, ctx: ScreenCtx): ReactNode {
               <p>선은 여러 개 그려도 됩니다. 잘못 그었으면 되돌리기, 전체 지우기를 쓰세요. 다 그렸으면 <em>최초 추론 제출</em>을 누릅니다.</p>
             </div>
             <div>
-              <div className="callout"><strong>정답을 맞히는 활동이 아닙니다</strong>지금 생각을 솔직하게 기록하는 것이 목적입니다. 제출한 최초 추론은 나중에 고칠 수 없지만, 2차시에 "수정 추론"을 따로 제출합니다. 처음과 나중의 차이가 오늘의 공부입니다.</div>
+              <div className="callout"><strong>정답을 맞히는 활동이 아닙니다</strong>지금 생각을 솔직하게 기록하는 것이 목적입니다. 제출한 최초 추론은 나중에 고칠 수 없지만, 화산 증거를 본 뒤 "수정 추론"을 따로 제출합니다. 처음과 나중의 차이가 오늘의 공부입니다.</div>
               <div className="callout brass"><strong>팁</strong>3D 지구본이 어렵다면 왼쪽 위 버튼으로 2D 지도로 바꿔 그리세요. 두 손가락으로 지도를 움직이고, 한 손가락으로 그립니다.</div>
             </div>
           </div>
@@ -298,7 +298,7 @@ export function renderScreen(id: string, ctx: ScreenCtx): ReactNode {
       return (
         <Card kicker="Step 7 · 1" title="생각을 고치는 것은 실력이다">
           <div className="prose-lg">
-            <p>과학자는 처음 생각을 끝까지 지키는 사람이 아니라, <em>새 증거가 오면 생각을 고치는 사람</em>입니다. 1차시에 그린 선은 지진만 보고 그은 것입니다. 이제 화산이라는 두 번째 증거가 있습니다.</p>
+            <p>과학자는 처음 생각을 끝까지 지키는 사람이 아니라, <em>새 증거가 오면 생각을 고치는 사람</em>입니다. 앞에서 그린 선은 지진만 보고 그은 것입니다. 이제 화산이라는 두 번째 증거가 있습니다.</p>
             <p>다음 화면에는 최초 추론이 초안으로 복사되어 있습니다. <mark>고칠 곳만 고치고</mark> 수정 추론을 제출하세요. 최초 기록은 그대로 남습니다.</p>
             <p>바꿀 이유가 없다면 그대로 제출해도 됩니다. "왜 바꾸지 않았는가"도 근거입니다.</p>
           </div>

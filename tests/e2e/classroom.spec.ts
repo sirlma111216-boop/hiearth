@@ -27,7 +27,7 @@ const readout = (page: Page) => page.locator('.lesson-nav .readout')
 /** 교사: 옆 목록에서 n단계 첫 화면으로 */
 async function teacherStep(page: Page, n: number) {
   await page.locator('.stage-list .stage-item').nth(n - 1).click()
-  await expect(readout(page)).toContainText(n + '/10 ·')
+  await expect(readout(page)).toContainText(n + '/8 ·')
   await expect(readout(page)).toContainText('(1/')
 }
 /** 교사: 다음 화면으로 넘기고 전환이 끝날 때까지 기다린다 */
@@ -73,7 +73,7 @@ test('교실 전체 흐름', async ({ browser }) => {
     await expect(page).toHaveURL(new RegExp(`/room/${code}$`))
     await expect(page.locator('.stepbar')).toBeVisible({ timeout: 60_000 })
   }
-  await expect(readout(s1)).toContainText('1/10')
+  await expect(readout(s1)).toContainText('1/8')
 
   // 교사 화면 참가 현황
   await teacher.getByRole('tab', { name: '진행' }).click()
@@ -96,7 +96,7 @@ test('교실 전체 흐름', async ({ browser }) => {
 
   // ---- 교사: 3단계(관찰)로 → 학생 따라옴 ----
   await teacherStep(teacher, 3)
-  await expect(readout(s1)).toContainText('3/10', { timeout: 15_000 })
+  await expect(readout(s1)).toContainText('3/8', { timeout: 15_000 })
   await expect(s1.locator('.activity-stage canvas')).toBeVisible({ timeout: 60_000 })
   // 관찰 응답 저장
   await s1.locator('.choice').first().click()
@@ -131,7 +131,7 @@ test('교실 전체 흐름', async ({ browser }) => {
 
   // ---- 교사: 5단계 공개 → 학생에게 다른 선이 보임 ----
   await teacherStep(teacher, 5)
-  await expect(readout(s1)).toContainText('5/10', { timeout: 15_000 })
+  await expect(readout(s1)).toContainText('5/8', { timeout: 15_000 })
   await expect(s1.locator('.layer-toggle', { hasText: '다른 사람 선' })).not.toContainText('공개 전')
 
   // 5-2 돌아보기 (자기 분석)
@@ -145,25 +145,27 @@ test('교실 전체 흐름', async ({ browser }) => {
   await expect(s1.getByRole('dialog')).toContainText('화산의 위치', { timeout: 20_000 })
   await s1.getByRole('button', { name: '지도에서 확인하기' }).click()
 
-  // ---- 7단계 수정: 7-2에서 초안 복사·제출 ----
-  await teacherStep(teacher, 7)
+  // ---- 6-5 수정 추론: 초안 복사·제출 ----
   await teacherNext(teacher)
-  await expect(readout(s1)).toContainText('7/10', { timeout: 15_000 })
+  await teacherNext(teacher)
+  await teacherNext(teacher)
+  await expect(readout(s1)).toContainText('6/8', { timeout: 15_000 })
+  await expect(readout(s1)).toContainText('(5/5)')
   await expect(s1.getByText('그린 선 1/12')).toBeVisible({ timeout: 20_000 })
   await submitGuess(s1, '수정 추론 제출')
   await expect(s1.getByText('수정 추론이 서버에 저장되었습니다.')).toBeVisible()
 
-  // ---- 8단계 판 경계: 8-2 공개 카드, 8-3 비교 ----
-  await teacherStep(teacher, 8)
+  // ---- 7단계 판 경계: 7-2 공개 카드, 7-3 비교 ----
+  await teacherStep(teacher, 7)
   await teacherNext(teacher)
   await expect(s1.getByRole('dialog')).toContainText('판 경계', { timeout: 20_000 })
   await s1.getByRole('button', { name: '지도에서 확인하기' }).click()
   await teacherNext(teacher)
   await expect(s1.locator('.mini-map img')).toHaveCount(2, { timeout: 20_000 })
 
-  // ---- 9단계 설명 ----
-  await teacherStep(teacher, 9)
-  await expect(readout(s1)).toContainText('9/10', { timeout: 15_000 })
+  // ---- 8단계 설명 ----
+  await teacherStep(teacher, 8)
+  await expect(readout(s1)).toContainText('8/8', { timeout: 15_000 })
   await s1.getByLabel(/나의 설명/).fill('태평양 가장자리를 따라 지진과 화산이 띠를 이룬다.')
   await s1.getByRole('button', { name: '설명 저장' }).click()
   await expect(s1.getByText('서버에 저장되었습니다.')).toBeVisible()
@@ -174,10 +176,10 @@ test('교실 전체 흐름', async ({ browser }) => {
   // ---- 새로고침 후 복구 (같은 화면, 기록 유지) ----
   await s1.reload()
   await expect(s1.locator('.stepbar')).toBeVisible({ timeout: 60_000 })
-  await expect(readout(s1)).toContainText('9/10')
+  await expect(readout(s1)).toContainText('8/8')
 
-  // ---- 10단계 결론 → 보고서 ----
-  await teacherStep(teacher, 10)
+  // ---- 결론 → 보고서 (8-3, 8-4) ----
+  await teacherNext(teacher)
   await teacherNext(teacher)
   await s1.getByRole('link', { name: '탐구 카드 열기' }).click()
   await expect(s1.locator('.report')).toContainText('처음 생각')
@@ -213,9 +215,9 @@ test('혼자 탐사: 처음부터 끝까지', async ({ browser }) => {
   const closeReveal = async () => { const b = page.getByRole('button', { name: '지도에서 확인하기' }); if (await b.isVisible().catch(() => false)) await b.click() }
   const goNext = async () => { await closeReveal(); await nextBtn(page).click(); await page.waitForTimeout(300) }
   for (let i = 0; i < 6; i++) await goNext() // → 3-2 (시간)
-  await expect(readout(page)).toContainText('3/10')
+  await expect(readout(page)).toContainText('3/8')
   await goNext(); await goNext(); await goNext() // → 4-2 그리기
-  await expect(readout(page)).toContainText('4/10')
+  await expect(readout(page)).toContainText('4/8')
   await expect(nextBtn(page)).toBeDisabled()
   await page.getByRole('button', { name: '그리기', exact: true }).click()
   await drawLine(page)
@@ -225,16 +227,16 @@ test('혼자 탐사: 처음부터 끝까지', async ({ browser }) => {
   await expect(page.locator('.mini-map img').first()).toBeVisible({ timeout: 20_000 })
   await goNext(); await goNext() // 6-1, 6-2 (화산 카드)
   await expect(page.getByRole('dialog')).toContainText('화산의 위치', { timeout: 20_000 })
-  await goNext(); await goNext(); await goNext() // 6-3, 7-1, 7-2
-  await expect(readout(page)).toContainText('7/10')
+  await goNext(); await goNext(); await goNext() // 6-3, 6-4, 6-5
+  await expect(readout(page)).toContainText('(5/5)')
   await submitGuess(page, '수정 추론 제출')
-  await goNext(); await goNext() // 8-1, 8-2 (경계 카드)
+  await goNext(); await goNext() // 7-1, 7-2 (경계 카드)
   await expect(page.getByRole('dialog')).toContainText('판 경계', { timeout: 20_000 })
-  await goNext(); await goNext() // 8-3, 9-1
+  await goNext(); await goNext() // 7-3, 8-1
   await page.getByLabel(/나의 설명/).fill('지진과 화산이 같은 띠 위에 있다.')
   await page.getByRole('button', { name: '설명 저장' }).click()
-  await goNext(); await goNext(); await goNext() // 9-2, 10-1, 10-2
-  await expect(readout(page)).toContainText('10/10')
+  await goNext(); await goNext(); await goNext() // 8-2, 8-3, 8-4
+  await expect(readout(page)).toContainText('(4/4)')
   await page.getByRole('link', { name: '탐구 카드 열기' }).click()
   await expect(page.locator('.report')).toContainText('탐구 질문')
   await expect(page.locator('.report-map img').first()).toBeVisible()

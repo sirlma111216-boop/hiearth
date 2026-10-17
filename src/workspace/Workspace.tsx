@@ -66,6 +66,8 @@ export interface WorkspaceProps {
   initialLayers?: Partial<Record<LayerId, boolean>>
   /** 수업 화면이 정하는 활동 상태 (기록의 stage 대신 사용) */
   stageOverride?: Stage
+  /** 패널 초기 열림 (기본: 둘 다 열림) */
+  defaultOpen?: { evidence?: boolean; tools?: boolean }
 }
 
 type Sheet = null | 'evidence' | 'tools' | 'time' | 'layers'
@@ -87,8 +89,8 @@ export function Workspace(p: WorkspaceProps) {
   const show = { banner: true, evidence: true, tools: true, time: true, mobileTabs: true, ...(p.panels ?? {}) }
   const [minMag, setMinMag] = useState(0)
   const [pick, setPick] = useState<MapPick>(null)
-  const [leftOpen, setLeftOpen] = useState(true)
-  const [rightOpen, setRightOpen] = useState(true)
+  const [leftOpen, setLeftOpen] = useState(p.defaultOpen?.evidence ?? true)
+  const [rightOpen, setRightOpen] = useState(p.defaultOpen?.tools ?? true)
   const [sheet, setSheet] = useState<Sheet>(null)
   const [reveal, setReveal] = useState<null | 'volcano' | 'boundary'>(null)
   const [overlapEmphasis, setOverlapEmphasis] = useState(false)

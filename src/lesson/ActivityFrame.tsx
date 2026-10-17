@@ -27,9 +27,11 @@ interface Props {
   onResponse?: (patch: { text?: string; choices?: string[] }) => void
   role: 'solo' | 'student' | 'teacher'
   children?: ReactNode
+  /** 과제 머리 아래 안내(예: 선행 조건 미충족) */
+  notice?: ReactNode
 }
 
-export function ActivityFrame({ task, done = [], workspace, response, onResponse, role, children }: Props) {
+export function ActivityFrame({ task, done = [], workspace, response, onResponse, role, children, notice }: Props) {
   const choices = response?.choices ?? []
   const toggle = (opt: string) => {
     if (!onResponse) return
@@ -50,8 +52,9 @@ export function ActivityFrame({ task, done = [], workspace, response, onResponse
           </div>
         ) : null}
       </div>
+      {notice}
       <div className="activity-stage">
-        <Workspace {...workspace} embedded panels={{ banner: false, ...(task.panels ?? {}) }} reveal={task.reveal ?? null} initialLayers={task.initialLayers} />
+        <Workspace {...workspace} embedded panels={{ banner: false, ...(task.panels ?? {}) }} reveal={task.reveal ?? null} initialLayers={task.initialLayers} defaultOpen={{ evidence: false, tools: task.panels?.tools !== false }} />
       </div>
       {role !== 'teacher' && (task.notePrompt || task.choices) ? (
         <div className="response">

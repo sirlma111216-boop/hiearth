@@ -1,7 +1,7 @@
 // 수업 셸 — 단계 표시줄, 화면 카드, 이전/다음. 혼자 탐사·학생·교사가 같은 셸을 쓴다.
 import { Component, useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react'
 import type { GuessKind, Evidence, ViewState, MapMode } from '@shared/domain/types'
-import { LESSON_STEPS, LESSON_SCREENS, SUBS, screenAt, screenIndex, screenLE, nextScreen, prevScreen, nextStepStart, screenLabel, screenStage, type ScreenRef } from '@shared/domain/lesson'
+import { LESSON_STEPS, LESSON_SCREENS, SUBS, screenAt, screenIndex, screenLE, nextScreen, prevScreen, nextStepStart, screenLabel, screenStage, refOf, type ScreenRef } from '@shared/domain/lesson'
 import type { LessonData } from '../data/lesson'
 import type { Action, InquiryState } from '../inquiry/engine'
 import { Button } from '../ui/Button'
@@ -104,8 +104,10 @@ export function LessonShell(p: LessonShellProps) {
     }
   }, [def.id, record.evidence.length, record.firstGuess, record.revisedGuess, state.draft.lines.length])
 
+  const missingFirst = def.id === 'revise-draw' && !record.firstGuess && role !== 'teacher'
   const body = def.kind === 'activity' && task ? (
     <ActivityFrame task={task} done={done} role={role} response={responses[def.id]} onResponse={setResponse}
+      notice={missingFirst ? <div className="callout brass" style={{ marginBottom: 12 }}><strong>복사할 최초 추론이 없습니다</strong>먼저 추론 단계에서 선을 그려 제출하면 그 선이 여기에 초안으로 복사됩니다. <button type="button" className="btn btn-sm btn-secondary" style={{ marginLeft: 8 }} onClick={() => go(refOf('guess-draw'))}>추론 단계로 가기</button></div> : undefined}
       workspace={{
         data: p.data, state, dispatch, role, room: p.room, onSubmit: p.onSubmit,
         onStage: () => { /* 단계는 화면이 정한다 */ }, onEvidenceChange: p.onEvidenceChange, onExplanation: p.onExplanation,
@@ -120,22 +122,19 @@ export function LessonShell(p: LessonShellProps) {
   return (
     <div className="lesson">
       <nav className="stepbar" ref={barRef} aria-label="수업 단계">
-        {LESSON_STEPS.map((s, i) => {
+        {LESSON_STEPS.map((s) => {
           const cur = s.n === screen.step
           const doneStep = s.n < screen.step
           const locked = !allowed({ step: s.n, sub: 1 })
           return (
-            <span key={s.n} style={{ display: 'contents' }}>
-              {(i === 0 || s.first) ? <span className={'sb-split' + (i === 0 ? ' is-first' : '')} aria-hidden="true">{s.period}차시</span> : null}
-              <button type="button" className={'sb-item' + (cur ? ' is-now' : doneStep ? ' is-done' : '') + (locked ? ' is-locked' : '')} onClick={() => go({ step: s.n, sub: 1 })} aria-current={cur ? 'step' : undefined} title={`${s.n}. ${s.long}`} disabled={locked}>
-                <span className="sb-num">{s.n}</span><span className="sb-label">{s.short}</span>
-              </button>
-            </span>
+            <button key={s.n} type="button" className={'sb-item' + (cur ? ' is-now' : doneStep ? ' is-done' : '') + (locked ? ' is-locked' : '')} onClick={() => go({ step: s.n, sub: 1 })} aria-current={cur ? 'step' : undefined} title={`${s.n}. ${s.long}`} disabled={locked}>
+              <span className="sb-num">{s.n}</span><span className="sb-label">{s.short}</span>
+            </button>
           )
         })}
       </nav>
 
-      <main className="lesson-main">
+      <main className={'lesson-main' + (def.kind === 'activity' ? ' is-activity' : '')}>
         {def.kind !== 'narrative' ? (
           <div className="screen-head">
             <div><div className="kicker">{stepDef.n}. {stepDef.long} · {def.sub}/{SUBS[def.step]}</div>{def.kind === 'activity' ? <h1>{def.title}</h1> : null}</div>

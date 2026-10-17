@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useReducer, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { GuessKind, LngLat, RoomMeta, SharedGuess } from '@shared/domain/types'
 import { emptyRecord } from '@shared/domain/activity'
-import { screenAt, screenStage, type ScreenRef } from '@shared/domain/lesson'
+import { refOf, screenAt, screenIndex, screenStage, type ScreenRef } from '@shared/domain/lesson'
 import { useLesson, LoadingScreen } from '../data/useLesson'
 import type { LessonData } from '../data/lesson'
 import { emptyDraft, makeRevision, reducer, type InquiryState } from '../inquiry/engine'
@@ -16,15 +16,15 @@ interface SceneDef { id: string; title: string; caption: string; screen: ScreenR
 
 const SCENES: SceneDef[] = [
   { id: 'join', title: 'QR 입장', caption: '교사가 QR과 코드를 보여 주고, 학생은 별명만 입력해 들어옵니다. (아래 참가자는 시연용 가상 참가자입니다)', screen: null, durationMs: 7000 },
-  { id: 'intro', title: '도입', caption: '내레이션과 오늘의 탐구 질문으로 시작합니다. 설명 화면은 건너뛸 수 있습니다.', screen: { step: 1, sub: 2 }, durationMs: 7000 },
-  { id: 'observe', title: '지진 관찰', caption: '실제 USGS 지진 자료를 지구본에서 관찰하고, 관찰 메모와 선택 응답을 남깁니다.', screen: { step: 3, sub: 1 }, durationMs: 10000 },
-  { id: 'guess', title: '최초 추론', caption: '지진 분포만 보고 판의 경계가 있을 것 같은 곳에 선을 그립니다. 제출된 최초 추론은 바뀌지 않습니다.', screen: { step: 4, sub: 2 }, durationMs: 10000 },
-  { id: 'reveal', title: '추론 공개', caption: '교사가 공개하면 시연용 가상 참가자의 선이 겹쳐 보입니다. 겹침은 의견 겹침이지 정답이 아닙니다.', screen: { step: 5, sub: 1 }, durationMs: 9000 },
-  { id: 'reflect', title: '내 선 돌아보기', caption: '학생이 자기 선을 지진 분포 위에서 다시 보고 자기 분석을 합니다.', screen: { step: 5, sub: 2 }, durationMs: 8000 },
-  { id: 'volcano', title: '화산 공개', caption: '새 증거로 화산 위치(삼각형)가 추가됩니다. 지진 띠와 어디서 겹치는지 비교합니다.', screen: { step: 6, sub: 2 }, durationMs: 9000 },
-  { id: 'revise', title: '수정 추론', caption: '최초 추론을 복사해 화산 증거를 반영해 고칩니다. 최초 기록은 그대로 남습니다.', screen: { step: 7, sub: 2 }, durationMs: 9000 },
-  { id: 'compare', title: '경계 비교', caption: '연구 모형의 판 경계를 열어 내 선과 비교합니다. 점수를 매기지 않습니다.', screen: { step: 8, sub: 3 }, durationMs: 9000 },
-  { id: 'report', title: '결론·탐구 카드', caption: '처음 생각과 수정한 생각, 증거와 설명, 자료의 한계가 탐구 카드에 남습니다.', screen: { step: 10, sub: 1 }, durationMs: 10000 },
+  { id: 'intro', title: '도입', caption: '내레이션과 오늘의 탐구 질문으로 시작합니다. 설명 화면은 건너뛸 수 있습니다.', screen: refOf('intro-questions'), durationMs: 7000 },
+  { id: 'observe', title: '지진 관찰', caption: '실제 USGS 지진 자료를 지구본에서 관찰하고, 관찰 메모와 선택 응답을 남깁니다.', screen: refOf('observe-world'), durationMs: 10000 },
+  { id: 'guess', title: '최초 추론', caption: '지진 분포만 보고 판의 경계가 있을 것 같은 곳에 선을 그립니다. 제출된 최초 추론은 바뀌지 않습니다.', screen: refOf('guess-draw'), durationMs: 10000 },
+  { id: 'reveal', title: '추론 공개', caption: '교사가 공개하면 시연용 가상 참가자의 선이 겹쳐 보입니다. 겹침은 의견 겹침이지 정답이 아닙니다.', screen: refOf('reveal-lines'), durationMs: 9000 },
+  { id: 'reflect', title: '내 선 돌아보기', caption: '학생이 자기 선을 지진 분포 위에서 다시 보고 자기 분석을 합니다.', screen: refOf('reveal-reflect'), durationMs: 8000 },
+  { id: 'volcano', title: '화산 공개', caption: '새 증거로 화산 위치(삼각형)가 추가됩니다. 지진 띠와 어디서 겹치는지 비교합니다.', screen: refOf('volcano-open'), durationMs: 9000 },
+  { id: 'revise', title: '수정 추론', caption: '최초 추론을 복사해 화산 증거를 반영해 고칩니다. 최초 기록은 그대로 남습니다.', screen: refOf('revise-draw'), durationMs: 9000 },
+  { id: 'compare', title: '경계 비교', caption: '연구 모형의 판 경계를 열어 내 선과 비교합니다. 점수를 매기지 않습니다.', screen: refOf('plate-reflect'), durationMs: 9000 },
+  { id: 'report', title: '결론·탐구 카드', caption: '처음 생각과 수정한 생각, 증거와 설명, 자료의 한계가 탐구 카드에 남습니다.', screen: refOf('wrap-compare'), durationMs: 10000 },
 ]
 
 // 시연용 가상 참가자 선 — 손으로 적은 대략적 경로. 실제 수업 기록과 무관하며 항상 '시연용'으로 표시한다.
@@ -84,7 +84,7 @@ function ShowcaseInner({ data }: { data: LessonData }) {
   const meta: RoomMeta = useMemo(() => ({
     code: 'DEMO00', title: '시연용 탐사실', datasetId: data.datasetVersion, startRegion: 'world', maxParticipants: 40, groups: [], createdAt: Date.now(), expiresAt: Date.now() + 3600_000, endedAt: null, status: 'open',
     stage, joinLocked: false, inputLocked: false,
-    revealed: { firstGuesses: screen.step >= 5, volcanoes: screen.step >= 6, boundaries: screen.step >= 8, nicknames: true },
+    revealed: { firstGuesses: screenIndex(screen) >= screenIndex(refOf('reveal-lines')), volcanoes: screenIndex(screen) >= screenIndex(refOf('volcano-open')), boundaries: screenIndex(screen) >= screenIndex(refOf('plate-open')), nicknames: true },
     followView: null, screen, activityVersion: 1, roomRevision: idx + 1,
   }), [stage, screen, idx, data.datasetVersion])
   const shared = useMemo<SharedGuess[]>(() => Object.keys(DEMO_LINES).slice(1).map((name, k) => ({ participantId: 'demo' + k, nickname: name, group: null, kind: 'first' as const, guess: { lines: demoLines(name) }, submittedAt: Date.now() })), [])
