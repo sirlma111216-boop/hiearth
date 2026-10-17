@@ -1,0 +1,68 @@
+{
+  "generatedAt": "2026-10-17T03:26:43.547Z",
+  "rows": [
+    {
+      "file": "evidence-seismic.png",
+      "width": 1448,
+      "height": 1086,
+      "png": 2481041,
+      "webp": 191816,
+      "avif": 104924,
+      "webp960": 104652
+    },
+    {
+      "file": "evidence-volcano.png",
+      "width": 1448,
+      "height": 1086,
+      "png": 2524458,
+      "webp": 159784,
+      "avif": 97748,
+      "webp960": 76770
+    },
+    {
+      "file": "landing-desktop.png",
+      "width": 1672,
+      "height": 941,
+      "png": 2147015,
+      "webp": 139506,
+      "avif": 83384,
+      "webp960": 52220
+    },
+    {
+      "file": "landing-mobile.png",
+      "width": 941,
+      "height": 1672,
+      "png": 2186122,
+      "webp": 135814,
+      "avif": 79319,
+      "webp960": 129698
+    },
+    {
+      "file": "lobby-observatory.png",
+      "width": 1672,
+      "height": 941,
+      "png": 2038576,
+      "webp": 94824,
+      "avif": 58171,
+      "webp960": 35438
+    },
+    {
+      "file": "report-cover.png",
+      "width": 1536,
+      "height": 1024,
+      "png": 2046154,
+      "webp": 112974,
+      "avif": 65456,
+      "webp960": 52940
+    },
+    {
+      "file": "workspace-atmosphere.png",
+      "width": 1672,
+      "height": 941,
+      "png": 1750331,
+      "webp": 40422,
+      "avif": 26659,
+      "webp960": 14434
+    }
+  ]
+}

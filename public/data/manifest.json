@@ -1,0 +1,221 @@
+{
+  "schema": "earth-expedition-manifest-v1",
+  "datasets": {
+    "earthquakesLesson": {
+      "id": "usgs-lesson-2015-2025-m5",
+      "kind": "observation",
+      "provider": "USGS Earthquake Hazards Program (FDSN Event Web Service)",
+      "sourceUrl": "https://earthquake.usgs.gov/fdsnws/event/1/",
+      "retrievedAt": "2026-10-17T03:11:01.574Z",
+      "coverageStart": "2015-01-01T00:00:00Z",
+      "coverageEnd": "2025-01-01T00:00:00Z",
+      "filters": {
+        "minmagnitude": 5,
+        "region": "global",
+        "orderby": "time-asc",
+        "splitBy": "year"
+      },
+      "datasetVersion": "usgs-fdsn-2026-10-17",
+      "recordCount": 17003,
+      "expectedCount": 17003,
+      "rejected": {
+        "outOfRange": 0,
+        "badTime": 0,
+        "duplicate": 0,
+        "noId": 0
+      },
+      "nullMagnitudeCount": 0,
+      "nullDepthCount": 0,
+      "firstEventTime": "2015-01-01T08:49:53.200Z",
+      "lastEventTime": "2024-12-31T23:13:20.048Z",
+      "license": "U.S. Government work, public domain. Citation: U.S. Geological Survey Earthquake Hazards Program, Earthquake Catalog (ComCat).",
+      "note": "USGS ComCat은 관측망·수록 기준에 따라 수록 범위가 다르며 모든 지진의 완전한 기록이 아니다. 수업용으로 규모 5.0 이상만 포함한다.",
+      "files": [
+        {
+          "year": 2015,
+          "apiCount": 1571,
+          "recordCount": 1571,
+          "path": "data/earthquakes-2015.json",
+          "bytes": 230999,
+          "gzipBytes": 50300,
+          "sha256": "6d5ce255ed057e55c72bac6bf04283741494039d23cbd171cfc48e2bc65105ab"
+        },
+        {
+          "year": 2016,
+          "apiCount": 1708,
+          "recordCount": 1708,
+          "path": "data/earthquakes-2016.json",
+          "bytes": 251953,
+          "gzipBytes": 54180,
+          "sha256": "3865f316ef5046050a92256cf897ec4ce791d5d042ca505d5e09d1f7426af817"
+        },
+        {
+          "year": 2017,
+          "apiCount": 1567,
+          "recordCount": 1567,
+          "path": "data/earthquakes-2017.json",
+          "bytes": 230831,
+          "gzipBytes": 50622,
+          "sha256": "e0ffcf2612c8d776b3b927c2904b9a0a0c0bf9ba68d1ff5e407a3b7dc73dc061"
+        },
+        {
+          "year": 2018,
+          "apiCount": 1822,
+          "recordCount": 1822,
+          "path": "data/earthquakes-2018.json",
+          "bytes": 268072,
+          "gzipBytes": 57065,
+          "sha256": "d4544475f4c4332f964ce42fae39d43a89583fc773bd3adb0f6848a585889705"
+        },
+        {
+          "year": 2019,
+          "apiCount": 1645,
+          "recordCount": 1645,
+          "path": "data/earthquakes-2019.json",
+          "bytes": 241431,
+          "gzipBytes": 53127,
+          "sha256": "883fc186a59eb95d3503598c3bbb3c68887d0619138af651bd0a210647e32345"
+        },
+        {
+          "year": 2020,
+          "apiCount": 1450,
+          "recordCount": 1450,
+          "path": "data/earthquakes-2020.json",
+          "bytes": 212559,
+          "gzipBytes": 47852,
+          "sha256": "24fe647c8c1cc42468a57dabe73ea0b0205120c95a4171debdafd9eb8a9429f9"
+        },
+        {
+          "year": 2021,
+          "apiCount": 2227,
+          "recordCount": 2227,
+          "path": "data/earthquakes-2021.json",
+          "bytes": 325366,
+          "gzipBytes": 66765,
+          "sha256": "471c7e23de9d360ec3de58747787212f01e7597bf91e50283ba1fbd3658692b1"
+        },
+        {
+          "year": 2022,
+          "apiCount": 1726,
+          "recordCount": 1726,
+          "path": "data/earthquakes-2022.json",
+          "bytes": 251805,
+          "gzipBytes": 54953,
+          "sha256": "c786cf7442ce2f67d2418228f89b62ba0c3b73aa49a102107b8e5ea56a2cfff3"
+        },
+        {
+          "year": 2023,
+          "apiCount": 1780,
+          "recordCount": 1780,
+          "path": "data/earthquakes-2023.json",
+          "bytes": 260786,
+          "gzipBytes": 56693,
+          "sha256": "34a0ec85f9fc1881b26267bbffb1dcc7653283207bc40c3ac5d5ca166026b8c0"
+        },
+        {
+          "year": 2024,
+          "apiCount": 1507,
+          "recordCount": 1507,
+          "path": "data/earthquakes-2024.json",
+          "bytes": 220923,
+          "gzipBytes": 48471,
+          "sha256": "606f8e3560c89f089e917f35381e10fd5e690a61b32cf25b8324b590eec0e735"
+        }
+      ]
+    },
+    "volcanoes": {
+      "id": "gvp-holocene",
+      "kind": "catalog",
+      "provider": "Smithsonian Institution, Global Volcanism Program (Volcanoes of the World, Holocene list)",
+      "sourceUrl": "https://webservices.volcano.si.edu/geoserver/GVP-VOTW/ows?service=WFS&version=2.0.0&typeName=GVP-VOTW:Smithsonian_VOTW_Holocene_Volcanoes",
+      "typeName": "GVP-VOTW:Smithsonian_VOTW_Holocene_Volcanoes",
+      "crs": "EPSG:4326",
+      "retrievedAt": "2026-10-17T03:11:01.574Z",
+      "coverageStart": null,
+      "coverageEnd": null,
+      "filters": {
+        "epoch": "Holocene"
+      },
+      "datasetVersion": "gvp-votw-wfs-2026-10-17",
+      "recordCount": 1214,
+      "expectedCount": 1214,
+      "rejected": {
+        "outOfRange": 0,
+        "duplicate": 0,
+        "noNumber": 0
+      },
+      "license": "Global Volcanism Program, 2024. [Database] Volcanoes of the World (v. 5.x). Distributed by Smithsonian Institution. Citation required per GVP terms; see https://volcano.si.edu/gvp_citation.cfm",
+      "note": "Holocene(약 1만 년 이내 활동 흔적) 화산 위치 목록이다. 지금 분화 중인 화산 목록이 아니다. 지진 자료와 기간이 다르므로 같은 기간 발생 횟수로 비교하지 않는다.",
+      "path": "data/volcanoes.json",
+      "bytes": 133775,
+      "gzipBytes": 30907,
+      "sha256": "a26776234a62685f3677c9a082e4dc7bebb663e55fc41fd96eb9e4b1df16da97"
+    },
+    "plateBoundaries": {
+      "id": "usgs-plate-boundaries",
+      "kind": "model",
+      "provider": "USGS Earthquake Hazards Program ArcGIS service eq/map_plateboundaries (layer 1 \"Plates\")",
+      "sourceUrl": "https://earthquake.usgs.gov/arcgis/rest/services/eq/map_plateboundaries/MapServer/1",
+      "serviceVersion": 11.5,
+      "fields": [
+        "OBJECTID",
+        "Shape",
+        "NAME",
+        "LABEL",
+        "Shape_Length"
+      ],
+      "sourceSpatialReference": 4008,
+      "requestedOutSR": 4326,
+      "retrievedAt": "2026-10-17T03:11:01.574Z",
+      "coverageStart": null,
+      "coverageEnd": null,
+      "filters": {
+        "where": "1=1",
+        "pageSize": 1000
+      },
+      "datasetVersion": "usgs-plates-2026-10-17",
+      "recordCount": 1175,
+      "expectedCount": 1175,
+      "labelCounts": {
+        "Transform Boundary": 544,
+        "Divergent Boundary": 517,
+        "Other": 51,
+        "Convergent Boundary": 63
+      },
+      "coordinatePrecision": 3,
+      "license": "USGS public service; layer metadata carries no copyright text. Plate boundary lines are a research model, not an observation record.",
+      "note": "판 경계는 연구 모형이다. 기본 화면에서는 유형 구분 없이 한 종류의 선으로 표시한다. 자료에 이동 방향 정보가 없으므로 화살표를 만들지 않는다.",
+      "path": "data/plates.json",
+      "bytes": 271497,
+      "gzipBytes": 43040,
+      "sha256": "48e1b8fd2101ba5582413a842a39441ebadb147279e5d2c1c1cb2c481c139d68"
+    },
+    "land": {
+      "id": "natural-earth-land",
+      "kind": "basemap",
+      "provider": "Natural Earth (public domain), packaged as TopoJSON by world-atlas",
+      "sourceUrl": "https://www.naturalearthdata.com/",
+      "packageVersion": "2.0.2",
+      "naturalEarthVersion": "4.1.0 (world-atlas 2.x 기준)",
+      "retrievedAt": "2026-10-17T03:11:01.574Z",
+      "datasetVersion": "world-atlas-2.0.2",
+      "license": "Natural Earth: public domain (https://www.naturalearthdata.com/about/terms-of-use/). world-atlas: ISC License.",
+      "note": "학습용 지구 표면은 이 실제 지리 자료로 그린다. 국가 경계와 국가 이름은 기본 숨김이며 이 묶음에 포함하지 않는다.",
+      "files": [
+        {
+          "path": "data/land-110m.json",
+          "bytes": 55207,
+          "gzipBytes": 20657,
+          "sha256": "ead5f68119c49a9250902e7da303bcb209341bbb8fefe7369a439b48b704658a"
+        },
+        {
+          "path": "data/land-50m.json",
+          "bytes": 545534,
+          "gzipBytes": 171301,
+          "sha256": "619477ff690c086885e45cb91707d783805561bd75ae8e437b7d4694b0204e0f"
+        }
+      ]
+    }
+  },
+  "generatedAt": "2026-10-17T03:11:01.574Z"
+}

@@ -1,0 +1,88 @@
+{
+  "defaultMuted": true,
+  "generationService": "ElevenLabs (user-operated)",
+  "runtimeApiRequired": false,
+  "missingAssetBehavior": "silent",
+  "assets": [
+    {
+      "id": "ambient-observatory",
+      "path": "assets/audio/ambient-observatory.mp3",
+      "channel": "ambient",
+      "targetDurationSeconds": 24,
+      "loop": true,
+      "initialGainAfterOptIn": 0.07,
+      "status": "awaiting_user_generation",
+      "required": false
+    },
+    {
+      "id": "enter-expedition",
+      "path": "assets/audio/enter-expedition.mp3",
+      "channel": "effect",
+      "targetDurationSeconds": 1.2,
+      "loop": false,
+      "initialGainAfterOptIn": 0.22,
+      "status": "awaiting_user_generation",
+      "required": false
+    },
+    {
+      "id": "ui-tap",
+      "path": "assets/audio/ui-tap.mp3",
+      "channel": "effect",
+      "targetDurationSeconds": 0.15,
+      "loop": false,
+      "initialGainAfterOptIn": 0.16,
+      "status": "awaiting_user_generation",
+      "required": false
+    },
+    {
+      "id": "submit-confirm",
+      "path": "assets/audio/submit-confirm.mp3",
+      "channel": "effect",
+      "targetDurationSeconds": 0.6,
+      "loop": false,
+      "initialGainAfterOptIn": 0.22,
+      "status": "awaiting_user_generation",
+      "required": false
+    },
+    {
+      "id": "evidence-reveal",
+      "path": "assets/audio/evidence-reveal.mp3",
+      "channel": "effect",
+      "targetDurationSeconds": 1.8,
+      "loop": false,
+      "initialGainAfterOptIn": 0.22,
+      "status": "awaiting_user_generation",
+      "required": false
+    },
+    {
+      "id": "boundary-reveal",
+      "path": "assets/audio/boundary-reveal.mp3",
+      "channel": "effect",
+      "targetDurationSeconds": 2.2,
+      "loop": false,
+      "initialGainAfterOptIn": 0.22,
+      "status": "awaiting_user_generation",
+      "required": false
+    },
+    {
+      "id": "report-ready",
+      "path": "assets/audio/report-ready.mp3",
+      "channel": "effect",
+      "targetDurationSeconds": 1.4,
+      "loop": false,
+      "initialGainAfterOptIn": 0.22,
+      "status": "awaiting_user_generation",
+      "required": false
+    },
+    {
+      "id": "gentle-attention",
+      "path": "assets/audio/gentle-attention.mp3",
+      "channel": "effect",
+      "targetDurationSeconds": 0.5,
+      "loop": false,
+      "initialGainAfterOptIn": 0.18,
+      "status": "awaiting_user_generation",
+      "required": false
+    }
+  ]
+}

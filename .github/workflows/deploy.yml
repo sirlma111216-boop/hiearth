@@ -1,0 +1,45 @@
+# GitHub Actions로 Cloudflare Workers에 배포 (선택 경로).
+# 기본 경로는 Cloudflare 대시보드의 Workers Builds Git 연결이며, 그 경우 이 워크플로는 실행되지 않는다.
+# 이 워크플로를 쓰려면 저장소 Settings → Secrets and variables → Actions 에
+#   - Variables: DEPLOY_VIA_ACTIONS = true
+#   - Secrets:   CLOUDFLARE_API_TOKEN (Workers Scripts:Edit, Durable Objects 권한), CLOUDFLARE_ACCOUNT_ID
+# 를 추가한다. TEACHER_SECRET 은 `npx wrangler secret put TEACHER_SECRET` 으로 한 번만 설정한다.
+name: Deploy to Cloudflare Workers
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
+  deploy:
+    needs: check
+    if: ${{ vars.DEPLOY_VIA_ACTIONS == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy

@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.worker.json",
+  "compilerOptions": {
+    "types": ["@cloudflare/workers-types", "@cloudflare/vitest-plugin/types"],
+    "baseUrl": "../..",
+    "paths": { "@shared/*": ["shared/*"] }
+  },
+  "include": ["./**/*.ts", "../../shared", "../../worker"]
+}
