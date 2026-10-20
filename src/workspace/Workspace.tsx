@@ -64,6 +64,8 @@ export interface WorkspaceProps {
   reveal?: 'volcano' | 'boundary' | null
   /** 처음 켤 레이어 (지정한 것만 덮어씀) */
   initialLayers?: Partial<Record<LayerId, boolean>>
+  /** 시간 관찰 활동에 진입할 때 시작 시점의 누적 보기로 맞춘다 */
+  startTimeAtBeginning?: boolean
   /** 수업 화면이 정하는 활동 상태 (기록의 stage 대신 사용) */
   stageOverride?: Stage
   /** 패널 초기 열림 (기본: 둘 다 열림) */
@@ -131,7 +133,7 @@ export function Workspace(p: WorkspaceProps) {
     return data.timeRange
   }, [choice.kind, recent.data, data.timeRange])
   const times = useMemo(() => earthquakes.map((e) => e.time), [earthquakes])
-  const playback = useTimePlayback(timeRangeAll)
+  const playback = useTimePlayback(timeRangeAll, p.startTimeAtBeginning)
 
   // ----- 단계에 따른 레이어 가용성 -----
   const volcanoesAllowed = role === 'teacher' ? true : role === 'student' && roomMeta ? roomMeta.revealed.volcanoes : reached(stage, 'volcanoReveal')

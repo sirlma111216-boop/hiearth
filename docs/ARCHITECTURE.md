@@ -35,7 +35,7 @@ Durable Object RoomDO (worker/room.ts, SQLite)
 - `record`(제출된 것): `firstGuess`, `revisedGuess`, `evidence[]`(최대 3), `explanation`, `history`.
 - `draft`(그리는 중): 선 목록, 진행 중 꼭짓점, 되돌리기/다시 실행 스택, 선택 선.
 - `submit`: `idle → pending → saved | queued | error`. 서버 ack 전에는 "저장됨"으로 표시하지 않습니다.
-- 자유 곡선은 Douglas–Peucker로 단순화하고 `rawPointCount`로 원본과 구분합니다. 선 12개·선당 400점 상한은 스키마(zod)와 reducer 양쪽에서 강제됩니다.
+- 자유 곡선은 Douglas–Peucker로 단순화하고 `rawPointCount`로 원본과 구분합니다. 선 64개·선당 400점 상한은 스키마(zod)와 reducer 양쪽에서 강제됩니다. 최초 추론의 선을 복사한 뒤에도 수정 추론을 추가할 여유를 둡니다.
 
 ## 지도 (`src/map/`)
 

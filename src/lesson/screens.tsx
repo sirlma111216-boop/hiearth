@@ -38,6 +38,7 @@ export const ACTIVITY_TASKS: Record<string, ActivityTask> = {
     teacherTip: '"고르게 퍼져 있나요?"라고 먼저 물어 "띠"라는 말이 학생 입에서 나오게 합니다. 태평양 중심 보기로 돌려 보여 주면 띠가 한눈에 들어옵니다.',
   },
   'observe-time': {
+    startTimeAtBeginning: true,
     question: '시간을 돌리면 띠가 어떻게 드러날까?',
     hint: '재생을 누르면 10년 동안의 지진이 시간 순서로 쌓입니다. 처음에는 흩어져 보이던 점이 어느 순간 띠가 되는지 지켜보세요.',
     steps: ['처음으로 되감고 재생하기', '누적과 이동 시간창을 바꿔 보기'],

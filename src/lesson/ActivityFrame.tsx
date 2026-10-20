@@ -10,6 +10,7 @@ export interface ActivityTask {
   steps?: string[]
   panels?: WorkspaceProps['panels']
   initialLayers?: Partial<Record<LayerId, boolean>>
+  startTimeAtBeginning?: boolean
   reveal?: 'volcano' | 'boundary' | null
   /** 관찰 메모 질문 (있으면 입력칸 표시) */
   notePrompt?: string
@@ -55,7 +56,7 @@ export function ActivityFrame({ task, done = [], workspace, response, onResponse
       </div>
       {notice}
       <div className="activity-stage">
-        <Workspace {...workspace} embedded panels={{ banner: false, ...(task.panels ?? {}) }} reveal={task.reveal ?? null} initialLayers={task.initialLayers} defaultOpen={{ evidence: false, tools: task.panels?.tools !== false }} />
+        <Workspace {...workspace} embedded panels={{ banner: false, ...(task.panels ?? {}) }} reveal={task.reveal ?? null} initialLayers={task.initialLayers} startTimeAtBeginning={task.startTimeAtBeginning} defaultOpen={{ evidence: false, tools: task.panels?.tools !== false }} />
       </div>
       {role !== 'teacher' && (task.notePrompt || task.choices) ? (
         <div className="response">

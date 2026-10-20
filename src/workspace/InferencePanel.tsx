@@ -83,6 +83,7 @@ export function InferencePanel(p: Props) {
           ) : null}
           <div className="stack" style={{ marginTop: 12, gap: 4 }}>
             <div className="label">그린 선 <span className="num">{d.lines.length}/{MAX_LINES}</span> · 점 <span className="num">{totalPoints}</span></div>
+            {d.lines.length >= MAX_LINES ? <p className="hint" role="status">선은 최대 {MAX_LINES}개까지 그릴 수 있습니다. 목록에서 고칠 선을 선택하고 ‘선택 삭제’를 누른 뒤 다시 그려 주세요. 제출한 최초 추론은 그대로 보관됩니다.</p> : null}
             {d.lines.map((l, i) => (
               <button key={l.id} type="button" className={'stage-item' + (d.selectedLineId === l.id ? ' is-current' : '')} onClick={() => p.onSelectLine(d.selectedLineId === l.id ? null : l.id)} aria-pressed={d.selectedLineId === l.id}>
                 <span className="n">{i + 1}</span>

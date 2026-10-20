@@ -10,6 +10,26 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator('.stepbar button')).toHaveCount(8, { timeout: 60000 })
 })
 
+test('시간 관찰은 시작 시점에서 재생하고 다음 관찰은 전체 기간을 보여 준다', async ({ page }) => {
+  await step(page, 3)
+  await next(page).click()
+  const slider = page.getByLabel('시간 슬라이더')
+  const min = (await slider.getAttribute('min'))!
+  const max = String(Number(min) + Math.floor((Number(await slider.getAttribute('max')) - Number(min)) / 86400000) * 86400000)
+  await expect(slider).toHaveValue(min)
+  await expect(page.getByLabel('시간 보기 방식')).toHaveValue('cumulative')
+  await page.getByRole('button', { name: '재생', exact: true }).click()
+  await expect.poll(async () => Number(await slider.inputValue())).toBeGreaterThan(Number(min))
+  await page.getByRole('button', { name: '일시정지', exact: true }).click()
+  await slider.fill(max)
+  await next(page).click()
+  await expect(page.getByLabel('시간 보기 방식')).toHaveValue('all')
+  await expect(slider).toHaveValue(max)
+  await previous(page).click()
+  await expect(slider).toHaveValue(min)
+  await expect(page.getByLabel('시간 보기 방식')).toHaveValue('cumulative')
+})
+
 test('설명과 한계: 저장 전 이동·별도 저장·새로 시작', async ({ page }) => {
   await step(page, 8)
   await page.locator('#exp-text').fill('작성 중인 설명')
@@ -91,9 +111,9 @@ test('완료 표시는 실제 기록만 사용하고 제출한 최초 선은 편
     await next(page).click()
     if (i === 0) await page.getByRole('button', { name: '지도에서 확인하기' }).click()
   }
-  await expect(page.getByText('그린 선 1/12')).toBeVisible()
+  await expect(page.getByText('그린 선 1/64')).toBeVisible()
   await draw()
-  await expect(page.getByText('그린 선 2/12')).toBeVisible()
+  await expect(page.getByText('그린 선 2/64')).toBeVisible()
   await step(page, 4)
   await next(page).click()
   await expect(page.getByText(/최초 추론 제출 완료 · 선 1개/)).toBeVisible()

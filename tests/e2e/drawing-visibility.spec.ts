@@ -31,7 +31,7 @@ test('2D: 첫 선이 그리는 중·완료 직후 보이고, 선택·되돌리�
   for (let i = 1; i <= 12; i++) await page.mouse.move(x + i * 4, y + i * 5)
   await expect.poll(() => selectedLinePixels(canvas)).toBeGreaterThan(100)
   await page.mouse.up()
-  await expect(page.getByText('그린 선 1/12')).toBeVisible()
+  await expect(page.getByText('그린 선 1/64')).toBeVisible()
   // 다음 선이나 별도의 클릭 없이, 방금 완성한 선택 선이 남아 있어야 한다.
   await expect.poll(() => selectedLinePixels(canvas)).toBeGreaterThan(100)
   await canvas.screenshot({ path: testInfo.outputPath('first-line-visible.png') })
@@ -43,10 +43,10 @@ test('2D: 첫 선이 그리는 중·완료 직후 보이고, 선택·되돌리�
   await line.click() // 다시 선택해도 선이 사라지면 안 된다.
   await expect.poll(() => selectedLinePixels(canvas)).toBeGreaterThan(100)
   await tools.getByRole('button', { name: '되돌리기', exact: true }).click()
-  await expect(page.getByText('그린 선 0/12')).toBeVisible()
+  await expect(page.getByText('그린 선 0/64')).toBeVisible()
   await expect.poll(() => selectedLinePixels(canvas)).toBe(0)
   await tools.getByRole('button', { name: '다시 실행', exact: true }).click()
-  await expect(page.getByText('그린 선 1/12')).toBeVisible()
+  await expect(page.getByText('그린 선 1/64')).toBeVisible()
   await tools.locator('.stage-item').first().click()
   await expect.poll(() => selectedLinePixels(canvas)).toBeGreaterThan(100)
 })

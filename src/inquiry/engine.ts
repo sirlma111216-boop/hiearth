@@ -80,7 +80,7 @@ export function reducer(state: InquiryState, a: Action): InquiryState {
       return { ...state, draft: { ...d, lines: [...d.lines, line], selectedLineId: line.id } }
     }
     case 'draft/addPoint': {
-      if (draft.pending.length >= MAX_POINTS_PER_LINE) return state
+      if (draft.lines.length >= MAX_LINES || draft.pending.length >= MAX_POINTS_PER_LINE) return state
       return { ...state, draft: { ...draft, pending: [...draft.pending, a.point] } }
     }
     case 'draft/finishPending': {

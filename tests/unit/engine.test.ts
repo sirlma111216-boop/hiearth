@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { emptyRecord, moveStage, checklist, nextStage, prevStage, reached } from '@shared/domain/activity'
 import { reducer, emptyDraft, makeRevision, type InquiryState } from '../../src/inquiry/engine'
 import { csvCell, sanitizeNickname, guessSchema } from '@shared/domain/schemas'
-import type { LngLat } from '@shared/domain/types'
+import { MAX_LINES, type LngLat } from '@shared/domain/types'
 
 const init = (): InquiryState => ({ record: emptyRecord('ds-1'), draft: emptyDraft(), submit: { kind: null, status: 'idle', message: null } })
 
@@ -27,6 +27,23 @@ describe('활동 단계', () => {
 })
 
 describe('최초 추론 불변성과 수정 리비전', () => {
+  it('최초 추론 12개를 복사한 뒤 자유 곡선과 꼭짓점 선을 추가할 수 있다', () => {
+    let s = init()
+    for (let i = 0; i < 12; i++) s = reducer(s, { type: 'draft/stroke', points: [[i, 0], [i + 1, 1]], zoom: 1 })
+    const first = makeRevision('first', s.draft, 'ds-1')
+    s = reducer(s, { type: 'submit/saved', revision: first })
+    s = reducer(s, { type: 'setStage', stage: 'revise' })
+    s = reducer(s, { type: 'draft/loadFrom', guess: first.guess })
+    s = reducer(s, { type: 'draft/stroke', points: [[50, 0], [60, 10]], zoom: 1 })
+    expect(s.draft.lines).toHaveLength(13)
+    s = reducer(s, { type: 'draft/addPoint', point: [70, 0] })
+    s = reducer(s, { type: 'draft/addPoint', point: [80, 10] })
+    s = reducer(s, { type: 'draft/finishPending' })
+    const revised = makeRevision('revised', s.draft, 'ds-1')
+    expect(revised.guess.lines).toHaveLength(14)
+    expect(guessSchema.safeParse(revised.guess).success).toBe(true)
+    expect(first.guess.lines).toHaveLength(12)
+  })
   it('최초 추론은 두 번째 저장으로 덮어쓰이지 않는다', () => {
     let s = init()
     s = reducer(s, { type: 'draft/stroke', points: [[0, 0], [10, 10]], zoom: 1 })
@@ -81,8 +98,11 @@ describe('그리기 초안', () => {
   })
   it('선 개수·점 개수 상한', () => {
     let s = init()
-    for (let i = 0; i < 20; i++) s = reducer(s, { type: 'draft/stroke', points: [[i, 0], [i + 1, 1]], zoom: 1 })
-    expect(s.draft.lines).toHaveLength(12)
+    for (let i = 0; i < MAX_LINES + 2; i++) s = reducer(s, { type: 'draft/stroke', points: [[i, 0], [i + 1, 1]], zoom: 1 })
+    expect(s.draft.lines).toHaveLength(MAX_LINES)
+    s = reducer(s, { type: 'draft/addPoint', point: [0, 0] })
+    expect(s.draft.pending).toHaveLength(0)
+    expect(guessSchema.safeParse({ lines: [...s.draft.lines, s.draft.lines[0]] }).success).toBe(false)
     const big = guessSchema.safeParse({ lines: [{ id: 'x', points: Array.from({ length: 401 }, (_, i) => [i % 180, 0]), mode: 'freehand', rawPointCount: 401 }] })
     expect(big.success).toBe(false)
   })

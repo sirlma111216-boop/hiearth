@@ -74,6 +74,60 @@ async function submit(page: Page, revised = false) {
   await expect(page.getByText(`${revised ? '수정' : '최초'} 추론이 서버에 저장되었습니다.`)).toBeVisible()
 }
 
+test('시간 관찰 진입 시 교사와 학생이 시작 시점부터 보고 발표 전환은 재생 위치를 유지한다', async ({ browser }) => {
+  const { teacher, student, close } = await classroom(browser)
+  try {
+    await step(teacher, 3, 2)
+    for (const page of [teacher, student]) {
+      const slider = page.getByLabel('시간 슬라이더')
+      await expect(slider).toBeVisible()
+      await expect(slider).toHaveValue((await slider.getAttribute('min'))!)
+      await expect(page.getByLabel('시간 보기 방식')).toHaveValue('cumulative')
+    }
+    const slider = teacher.getByLabel('시간 슬라이더')
+    const min = Number(await slider.getAttribute('min'))
+    const max = String(min + Math.floor((Number(await slider.getAttribute('max')) - min) / 86400000) * 86400000)
+    await slider.fill(max)
+    await teacher.getByRole('button', { name: '전체화면 발표', exact: true }).first().click()
+    await expect(slider).toHaveValue(max)
+    await teacher.getByRole('button', { name: '발표 모드 종료' }).click()
+    await expect(slider).toHaveValue(max)
+    await next(teacher)
+    for (const page of [teacher, student]) {
+      await expect(page.getByLabel('시간 보기 방식')).toHaveValue('all')
+      await expect(page.getByLabel('시간 슬라이더')).toHaveValue(max)
+    }
+  } finally { await close() }
+})
+
+test('최초 추론 12개를 복사해도 수정 추론을 더 그리고 서버에 저장할 수 있다', async ({ browser }) => {
+  const { teacher, student, code, close } = await classroom(browser)
+  try {
+    await step(teacher, 4, 2)
+    for (let i = 0; i < 12; i++) await draw(student, i * 9)
+    await submit(student)
+    await step(teacher, 6, 2)
+    for (const page of [teacher, student]) await page.getByRole('button', { name: '지도에서 확인하기' }).click()
+    for (let i = 0; i < 3; i++) await next(teacher)
+    await expect(student.getByRole('heading', { name: '수정 추론 그리기', exact: true })).toBeVisible()
+    await draw(student, 120)
+    await expect(student.getByText(/그린 선 13\//)).toBeVisible()
+    await student.getByRole('button', { name: '꼭짓점 찍기', exact: true }).click()
+    const canvas = student.locator('.workspace-map canvas')
+    await canvas.scrollIntoViewIfNeeded()
+    await canvas.click({ position: { x: 100, y: 250 } })
+    await canvas.click({ position: { x: 170, y: 290 } })
+    await student.getByRole('button', { name: '선 완료', exact: true }).click()
+    await expect(student.getByText(/그린 선 14\//)).toBeVisible()
+    await submit(student, true)
+    const record = (await (await student.request.get(`/api/rooms/${code}/me`)).json()).record
+    expect(record.firstGuess.guess.lines).toHaveLength(12)
+    expect(record.revisedGuess.guess.lines).toHaveLength(14)
+    await student.reload()
+    await expect(student.getByText(/그린 선 14\//)).toBeVisible({ timeout: 60_000 })
+  } finally { await close() }
+})
+
 test('관찰 메모: 다른 교실 상태가 도착해도 저장 대기 중인 입력을 잃지 않는다', async ({ browser }) => {
   const { teacher, student, code, close } = await classroom(browser)
   try {
@@ -137,16 +191,16 @@ test('수정 추론 제출 후 새로고침하면 최신 수정 선에서 이어
   const { teacher, student, close } = await classroom(browser)
   try {
     await step(teacher, 4, 2)
-    await expect(student.getByText('그린 선 0/12')).toBeVisible()
+    await expect(student.getByText('그린 선 0/64')).toBeVisible()
     await draw(student)
     await submit(student)
     await step(teacher, 6, 5)
-    await expect(student.getByText('그린 선 1/12')).toBeVisible()
+    await expect(student.getByText('그린 선 1/64')).toBeVisible()
     await draw(student, 100)
     await submit(student, true)
-    await expect(student.getByText('그린 선 2/12')).toBeVisible()
+    await expect(student.getByText('그린 선 2/64')).toBeVisible()
     await student.reload()
-    await expect(student.getByText('그린 선 2/12')).toBeVisible({ timeout: 60_000 })
+    await expect(student.getByText('그린 선 2/64')).toBeVisible({ timeout: 60_000 })
   } finally { await close() }
 })
 
@@ -215,7 +269,7 @@ test('교사·학생 24개 화면, 터치 그리기, 복구·결과·종료', as
         await expect(mobile.locator('.sheet')).not.toHaveClass(/is-open/)
         await draw(mobile, revised ? 50 : 0, true)
         await mobile.getByRole('button', { name: '추론', exact: true }).click()
-        await expect(mobile.locator('.sheet').getByText(`그린 선 ${revised ? 2 : 1}/12`)).toBeVisible()
+        await expect(mobile.locator('.sheet').getByText(`그린 선 ${revised ? 2 : 1}/64`)).toBeVisible()
         await submit(mobile, revised)
         await student.screenshot({ path: info.outputPath(`${screen.id}-desktop.png`) })
         await mobile.screenshot({ path: info.outputPath(`${screen.id}-touch.png`) })
@@ -263,11 +317,11 @@ test('교사 3D 지도는 학생이 같은 개수의 선을 다시 제출해도 
   const { teacher, student, code, close } = await classroom(browser)
   try {
     await step(teacher, 4, 2)
-    await expect(student.getByText('그린 선 0/12')).toBeVisible()
+    await expect(student.getByText('그린 선 0/64')).toBeVisible()
     await draw(student)
     await submit(student)
     await step(teacher, 6, 5)
-    await expect(student.getByText('그린 선 1/12')).toBeVisible()
+    await expect(student.getByText('그린 선 1/64')).toBeVisible()
     await submit(student, true)
     await teacher.getByRole('button', { name: '3D 지구본으로 전환' }).click()
     const canvas = teacher.locator('.workspace-map[data-map-mode="3d"] canvas')

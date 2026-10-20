@@ -152,7 +152,7 @@ export interface InquiryRecord {
 }
 
 export const MAX_EVIDENCE = 3
-export const MAX_LINES = 12
+export const MAX_LINES = 64
 export const MAX_POINTS_PER_LINE = 400
 export const MAX_NICKNAME = 12
 export const MAX_TEXT = 1500

@@ -14,14 +14,22 @@ export interface TimeState {
   daysPerSecond: number
 }
 
-export function useTimePlayback(range: { min: number; max: number }) {
-  const [state, setState] = useState<TimeState>({ mode: 'all', cursor: range.max, windowDays: 30, playing: false, daysPerSecond: 30 })
+export function useTimePlayback(range: { min: number; max: number }, startAtBeginning = false) {
+  const [state, setState] = useState<TimeState>({ mode: startAtBeginning ? 'cumulative' : 'all', cursor: startAtBeginning ? range.min : range.max, windowDays: 30, playing: false, daysPerSecond: 30 })
   const raf = useRef(0)
   const last = useRef(0)
+  const wasTimeActivity = useRef(startAtBeginning)
 
   useEffect(() => {
-    setState((s) => ({ ...s, cursor: Math.min(Math.max(s.cursor, range.min), range.max) }))
-  }, [range.min, range.max])
+    // 시간 관찰은 처음부터 쌓고, 다음 관찰은 전체 기간의 분포로 돌아간다.
+    const leavingTimeActivity = wasTimeActivity.current && !startAtBeginning
+    setState((s) => startAtBeginning
+      ? { ...s, mode: 'cumulative', cursor: range.min, playing: false }
+      : leavingTimeActivity
+        ? { ...s, mode: 'all', cursor: range.max, playing: false }
+        : { ...s, cursor: Math.min(Math.max(s.cursor, range.min), range.max) })
+    wasTimeActivity.current = startAtBeginning
+  }, [range.min, range.max, startAtBeginning])
 
   useEffect(() => {
     if (!state.playing) return

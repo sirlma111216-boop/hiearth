@@ -110,7 +110,7 @@ test('교실 전체 흐름', async ({ browser }) => {
   await expect(nextBtn(s1)).toBeDisabled()
   await s1.getByRole('button', { name: '그리기', exact: true }).click()
   await drawLine(s1)
-  await expect(s1.getByText('그린 선 1/12')).toBeVisible()
+  await expect(s1.getByText('그린 선 1/64')).toBeVisible()
   await submitGuess(s1, '최초 추론 제출')
   await expect(s1.getByText('최초 추론이 서버에 저장되었습니다.')).toBeVisible()
   await expect(s1.getByRole('button', { name: '최초 추론 제출', exact: true })).toHaveCount(0)
@@ -152,7 +152,7 @@ test('교실 전체 흐름', async ({ browser }) => {
   await teacherNext(teacher)
   await expect(readout(s1)).toContainText('6/8', { timeout: 15_000 })
   await expect(readout(s1)).toContainText('(5/5)')
-  await expect(s1.getByText('그린 선 1/12')).toBeVisible({ timeout: 20_000 })
+  await expect(s1.getByText('그린 선 1/64')).toBeVisible({ timeout: 20_000 })
   await submitGuess(s1, '수정 추론 제출')
   await expect(s1.getByText('수정 추론이 서버에 저장되었습니다.')).toBeVisible()
 
