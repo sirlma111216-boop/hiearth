@@ -25,7 +25,7 @@ function ExploreInner({ data }: { data: LessonData }) {
   const [state, dispatch] = useLocalInquiry(data.datasetVersion)
   const toast = useToast()
   const [screen, setScreen] = useState<ScreenRef>(() => clampScreen(loadLocalScreen() ?? FIRST_SCREEN))
-  const hasProgress = !!state.record.firstGuess || state.record.evidence.length > 0 || screen.step > 1 || screen.sub > 1
+  const hasProgress = !!state.record.firstGuess || state.record.evidence.length > 0 || screen.step !== FIRST_SCREEN.step || screen.sub !== FIRST_SCREEN.sub
   const [askResume, setAskResume] = useState(hasProgress)
 
   // 화면이 정하는 활동 상태를 기록에도 반영한다 (기록 유지, 되돌아가도 제출은 그대로)
@@ -46,8 +46,8 @@ function ExploreInner({ data }: { data: LessonData }) {
 
   const restart = () => {
     clearLocalRecord()
-    dispatch({ type: 'record/replace', record: emptyRecord(data.datasetVersion) })
-    dispatch({ type: 'draft/clear' })
+    dispatch({ type: 'inquiry/reset', record: emptyRecord(data.datasetVersion) })
+    try { sessionStorage.removeItem('ee.explanation-draft./report/local') } catch { /* 저장소 접근 불가 */ }
     onScreen(FIRST_SCREEN)
     setAskResume(false)
     toast.push('새로 시작합니다. 이전 기록은 지웠습니다.')

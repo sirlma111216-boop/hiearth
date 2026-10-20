@@ -22,6 +22,8 @@ export type SubmitStatus = 'idle' | 'pending' | 'queued' | 'saved' | 'error'
 export interface InquiryState {
   record: InquiryRecord
   draft: DraftState
+  activeDraftKind?: 'first' | 'revised'
+  drafts?: Partial<Record<'first' | 'revised', DraftState>>
   /** 제출 처리 상태 (서버 확인 전에는 '제출 완료'로 표시하지 않는다) */
   submit: { kind: 'first' | 'revised' | null; status: SubmitStatus; message: string | null }
 }
@@ -29,7 +31,9 @@ export interface InquiryState {
 export const emptyDraft = (mode: DrawMode = 'freehand'): DraftState => ({ lines: [], pending: [], cursor: null, mode, undo: [], redo: [], selectedLineId: null })
 
 export type Action =
+  | { type: 'inquiry/reset'; record: InquiryRecord }
   | { type: 'setStage'; stage: Stage }
+  | { type: 'draft/activate'; kind: 'first' | 'revised' }
   | { type: 'draft/setMode'; mode: DrawMode }
   | { type: 'draft/stroke'; points: LngLat[]; zoom: number }
   | { type: 'draft/addPoint'; point: LngLat }
@@ -61,6 +65,15 @@ function pushUndo(d: DraftState): DraftState {
 export function reducer(state: InquiryState, a: Action): InquiryState {
   const { record, draft } = state
   switch (a.type) {
+    case 'inquiry/reset':
+      return { record: a.record, draft: emptyDraft(), submit: { kind: null, status: 'idle', message: null } }
+    case 'draft/activate': {
+      if (state.activeDraftKind === a.kind) return state
+      const drafts = { ...state.drafts, ...(state.activeDraftKind ? { [state.activeDraftKind]: draft } : {}) }
+      const revision = a.kind === 'first' ? record.firstGuess : record.revisedGuess ?? record.firstGuess
+      const seed = { ...emptyDraft(), lines: revision?.guess.lines.map(l => ({ ...l, points: l.points.map(p => [...p] as LngLat) })) ?? [] }
+      return { ...state, activeDraftKind: a.kind, drafts, draft: drafts[a.kind] ?? (a.kind === 'first' && !state.activeDraftKind && draft.lines.length ? draft : seed) }
+    }
     case 'setStage':
       return { ...state, record: moveStage(record, a.stage) }
     case 'draft/setMode':
@@ -160,4 +173,8 @@ export function makeRevision(kind: 'first' | 'revised', draft: DraftState, datas
     idempotencyKey: idempotencyKey(),
     datasetVersion,
   }
+}
+
+export function draftMatchesRevision(draft: DraftState, revision: GuessRevision | null | undefined): boolean {
+  return !!revision && !draft.pending.length && JSON.stringify(revision.guess.lines.map(l => l.points)) === JSON.stringify(draft.lines.map(l => l.points.map(pt => pt.map(v => Math.round(v * 1e4) / 1e4))))
 }

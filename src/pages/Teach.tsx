@@ -1,9 +1,9 @@
-// 교사 탐사실 생성 — 배포 비밀 값은 서버에서만 확인하고 브라우저에 저장하지 않는다.
+// 수업 생성자에게만 서버 세션을 발급한다. 공용 암호는 받지 않는다.
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import type { RoomSettings } from '@shared/domain/types'
 import { REGION_PRESETS } from '@shared/domain/presets'
-import { DATASETS, DEFAULT_DATASET } from '@shared/domain/presets'
+import { DEFAULT_DATASET } from '@shared/domain/presets'
 import { api, ApiError } from '../realtime/api'
 import { TopBar } from '../ui/TopBar'
 import { Button } from '../ui/Button'
@@ -13,12 +13,11 @@ import { formatKst } from '@shared/geo/time'
 
 export default function Teach() {
   const navigate = useNavigate()
-  const [key, setKey] = useState('')
   const [title, setTitle] = useState('지진과 화산, 판의 경계 찾기')
   const [region, setRegion] = useState('world')
   const [max, setMax] = useState(40)
   const [hours, setHours] = useState(24)
-  const [groups, setGroups] = useState('1모둠, 2모둠, 3모둠, 4모둠, 5모둠, 6모둠')
+  const [groups, setGroups] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [created, setCreated] = useState<{ code: string; recoveryToken: string; expiresAt: number } | null>(null)
@@ -38,10 +37,9 @@ export default function Teach() {
       groups: groups.split(',').map((g) => g.trim()).filter(Boolean).slice(0, 12),
     }
     try {
-      const r = await api.createRoom(key, settings)
+      const r = await api.createRoom(settings)
       rememberTeacherRoom({ code: r.code, title: settings.title, createdAt: r.meta.createdAt, expiresAt: r.meta.expiresAt })
       setCreated({ code: r.code, recoveryToken: r.recoveryToken, expiresAt: r.meta.expiresAt })
-      setKey('')
     } catch (err) {
       setError(err instanceof ApiError ? err.message : '탐사실을 만들지 못했습니다.')
     } finally {
@@ -69,16 +67,15 @@ export default function Teach() {
       <div className="stack" style={{ gap: 24 }}>
         <div>
           <span className="eyebrow">For Teachers</span>
-          <h1 style={{ fontSize: 32, marginTop: 8 }}>탐사실 만들기</h1>
+          <h1 style={{ fontSize: 32, marginTop: 8 }}>수업 만들기</h1>
           <p className="muted" style={{ marginTop: 8 }}>탐사실을 만들면 입장 코드와 QR이 생깁니다. 학생은 가입 없이 별명으로 들어옵니다. 기록은 생성 후 설정한 시간(최대 24시간) 동안 보관됩니다.</p>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
           <form className="card stack" onSubmit={create} style={{ gap: 14 }}>
             <h2 style={{ fontSize: 20 }}>새 탐사실</h2>
-            <div className="field"><label htmlFor="t-title">활동 제목</label><input id="t-title" className="input" value={title} maxLength={60} onChange={(e) => setTitle(e.target.value)} /></div>
-            <div className="field"><label htmlFor="t-ds">사용 자료 묶음</label>
-              <select id="t-ds" className="select" value={DEFAULT_DATASET} disabled>{DATASETS.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}</select>
-              <span className="hint">최근 자료는 활동 중 학생이 증거 서랍에서 추가로 볼 수 있습니다.</span></div>
+            <div className="field"><label htmlFor="t-title">수업 이름</label><input id="t-title" className="input" value={title} maxLength={60} onChange={(e) => setTitle(e.target.value)} /></div>
+            <p className="hint">기본 설정은 전 세계 · 최대 40명 · 24시간 보관입니다.</p>
+            <details className="simple-details"><summary>수업 설정 변경</summary><div className="stack">
             <div className="field"><label htmlFor="t-region">시작 지역</label>
               <select id="t-region" className="select" value={region} onChange={(e) => setRegion(e.target.value)}>{REGION_PRESETS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}</select></div>
             <div className="row">
@@ -86,10 +83,10 @@ export default function Teach() {
               <div className="field grow"><label htmlFor="t-hours">보관 시간</label><input id="t-hours" className="input num" type="number" min={1} max={24} value={hours} onChange={(e) => setHours(Number(e.target.value))} /></div>
             </div>
             <div className="field"><label htmlFor="t-groups">모둠 목록 (쉼표로 구분, 비우면 모둠 없음)</label><input id="t-groups" className="input" value={groups} onChange={(e) => setGroups(e.target.value)} /></div>
-            <div className="field"><label htmlFor="t-key">교사 비밀 값</label><input id="t-key" className="input" type="password" value={key} autoComplete="off" onChange={(e) => setKey(e.target.value)} />
-              <span className="hint">학교에서 배포 시 정한 값입니다. 브라우저에 저장되지 않습니다.</span></div>
+            </div></details>
+            <p className="hint">만든 브라우저가 교사 화면이 됩니다. 학생에게는 입장 링크만 공유하세요.</p>
             {error ? <p className="error-text" role="alert">{error}</p> : null}
-            <Button type="submit" variant="primary" size="lg" loading={busy} disabledReason={!key ? '교사 비밀 값을 입력하세요' : undefined}>탐사실 만들기</Button>
+            <Button type="submit" variant="primary" size="lg" loading={busy}>수업 만들기</Button>
           </form>
           <div className="stack" style={{ gap: 20 }}>
             {rooms.length ? (
@@ -100,13 +97,13 @@ export default function Teach() {
                 ))}
               </div>
             ) : null}
-            <form className="card stack" onSubmit={recover}>
+            <details className="card simple-details"><summary>다른 기기에서 수업 이어가기</summary><form className="stack" onSubmit={recover}>
               <h2 style={{ fontSize: 18 }}>다른 기기에서 교사 화면 복구</h2>
               <p className="hint">탐사실을 만들 때 받은 복구 코드를 입력하면 이 기기에서도 교사 권한으로 들어갑니다.</p>
               <div className="field"><label htmlFor="r-code">입장 코드</label><input id="r-code" className="input num" value={recoverCode} maxLength={6} onChange={(e) => setRecoverCode(e.target.value.toUpperCase())} /></div>
               <div className="field"><label htmlFor="r-token">복구 코드</label><input id="r-token" className="input" type="password" value={recoverToken} onChange={(e) => setRecoverToken(e.target.value)} /></div>
               <Button type="submit" variant="secondary" loading={busy} disabledReason={recoverCode.length !== 6 || !recoverToken ? '코드와 복구 코드를 입력하세요' : undefined}>복구하기</Button>
-            </form>
+            </form></details>
           </div>
         </div>
       </div>
@@ -118,7 +115,7 @@ export default function Teach() {
             <div className="field">
               <label htmlFor="t-recovery">교사 복구 코드 (지금 한 번만 표시됩니다)</label>
               <input id="t-recovery" className="input num" readOnly value={created.recoveryToken} onFocus={(e) => e.currentTarget.select()} />
-              <span className="hint">다른 기기에서 교사 화면을 열 때 필요합니다. 학생과 공유하지 마세요. 이 코드는 서버에 해시로만 저장됩니다.</span>
+              <span className="hint">다른 기기에서 교사 화면을 열 때 필요합니다. 학생과 공유하지 마세요. </span>
             </div>
           </>
         ) : null}

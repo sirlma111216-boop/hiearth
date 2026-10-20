@@ -4,7 +4,7 @@ import { DurableObject } from 'cloudflare:workers'
 import type { InquiryRecord, ParticipantPublic, RoomMeta, RoomSettings, SharedGuess, Stage, GuessRevision, Guess, Evidence } from '@shared/domain/types'
 import { MAX_EVIDENCE } from '@shared/domain/types'
 import { emptyRecord, isStage, stageIndex } from '@shared/domain/activity'
-import { FIRST_SCREEN, isValidScreen, screenStage, screenLabel } from '@shared/domain/lesson'
+import { FIRST_SCREEN, clampScreen, isValidScreen, screenStage, screenLabel } from '@shared/domain/lesson'
 import { csvCell, joinRequestSchema, roomSettingsSchema, sanitizeNickname } from '@shared/domain/schemas'
 import { checklist } from '@shared/domain/activity'
 import { studentMessageSchema, teacherMessageSchema, PROTOCOL_VERSION, type AckMessage, type NoticeMessage, type StudentSnapshot, type TeacherSnapshot, type ServerMessage } from '@shared/protocol/messages'
@@ -12,7 +12,6 @@ import { randomToken, sha256Hex } from './auth'
 
 export interface Env {
   ROOM: DurableObjectNamespace<RoomDO>
-  TEACHER_SECRET?: string
   APP_ENV?: string
 }
 
@@ -72,7 +71,13 @@ export class RoomDO extends DurableObject<Env> {
     const row = this.ctx.storage.sql.exec<{ v: string }>(`SELECT v FROM kv WHERE k = 'meta'`).toArray()[0]
     const meta = row ? (JSON.parse(row.v) as RoomMeta) : null
     // 이전 버전에서 만든 탐사실: 화면 정보가 없으면 첫 화면으로
-    if (meta && !meta.screen) meta.screen = { ...FIRST_SCREEN }
+    if (meta && !isValidScreen(meta.screen)) {
+      meta.screen = meta.screen ? clampScreen(meta.screen) : { ...FIRST_SCREEN }
+      meta.stage = screenStage(meta.screen)
+      if (stageIndex(meta.stage) >= stageIndex('volcanoReveal')) meta.revealed.volcanoes = true
+      if (stageIndex(meta.stage) >= stageIndex('boundaryCompare')) meta.revealed.boundaries = true
+      this.saveMeta(meta)
+    }
     this.meta = meta
     return this.meta
   }
@@ -689,10 +694,9 @@ export class RoomDO extends DurableObject<Env> {
         const stage = screenStage(msg.screen)
         // 화면이 가리키는 활동 상태로 맞추되, 이미 지나간 공개는 되돌리지 않는다
         const revealed = { ...meta.revealed }
-        if (stageIndex(stage) >= stageIndex('firstReveal')) revealed.firstGuesses = true
         if (stageIndex(stage) >= stageIndex('volcanoReveal')) revealed.volcanoes = true
         if (stageIndex(stage) >= stageIndex('boundaryCompare')) revealed.boundaries = true
-        const next = this.bump(meta, { screen: { step: msg.screen.step, sub: msg.screen.sub }, stage, revealed })
+        const next = this.bump(meta, { screen: { step: msg.screen.step, sub: msg.screen.sub }, stage, revealed, inputLocked: false })
         for (const p of this.activeParticipants()) {
           const rec = JSON.parse(p.record) as InquiryRecord
           if (rec.stage !== stage) {

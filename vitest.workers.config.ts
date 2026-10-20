@@ -10,7 +10,7 @@ export default defineConfig({
     cloudflareTest({
       wrangler: { configPath: './wrangler.jsonc' },
       miniflare: {
-        bindings: { TEACHER_SECRET: 'test-teacher-secret-0123456789', APP_ENV: 'test' },
+        bindings: { APP_ENV: 'test' },
       },
     }),
   ],

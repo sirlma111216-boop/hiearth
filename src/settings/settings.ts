@@ -22,7 +22,7 @@ const DEFAULTS: Settings = {
   ambientVolume: 0.07,
   motion: 'system',
   contrast: 'normal',
-  preferredMapMode: '3d',
+  preferredMapMode: '2d',
   lowPower: false,
   landingMotion: true,
 }

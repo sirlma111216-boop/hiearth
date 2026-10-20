@@ -61,7 +61,7 @@ Durable Object RoomDO (worker/room.ts, SQLite)
 
 ## 보안
 
-- 교사 생성: `x-teacher-key` 헤더를 Cloudflare secret `TEACHER_SECRET`과 상수 시간 비교. 성공 시 DO가 32바이트 세션을 발급하고 해시만 저장, 쿠키 `eet_<CODE>`(HttpOnly, SameSite=Lax, https면 Secure).
+- 교사 생성: Origin·생성 요청 제한·설정 검증 후 누구나 새 수업 생성 가능. DO가 32바이트 세션을 발급하고 해시만 저장, 쿠키 `eet_<CODE>`(HttpOnly, SameSite=Lax, https면 Secure).
 - 교사 복구 토큰은 생성 시 한 번 표시, 해시로 저장, 세션 발급에만 사용. 공개 입장 URL에는 들어가지 않습니다.
 - 참가자 세션 쿠키 `eep_<CODE>`. 모든 HTTP/WS에서 역할과 방을 검증. 다른 방 쿠키·추측 ID·학생의 교사 이벤트는 거부됩니다(테스트: `tests/workers/room.test.ts`).
 - Origin/Sec-Fetch-Site 확인(상태 변경·WS), 메모리 토큰 버킷(생성 5/분, 입장 12/분, API 2/초) + DO 입장 시도 120/분, 메시지 1.6MB·본문 크기 제한, 별명 정리, CSV 수식 주입 방지.
@@ -69,11 +69,11 @@ Durable Object RoomDO (worker/room.ts, SQLite)
 
 ## 수업 흐름 (`shared/domain/lesson.ts`, `src/lesson/`)
 
-학생이 처음부터 지도에 던져지지 않도록, 앱은 **8단계 24화면**의 수업 흐름으로 진행됩니다. 차시 구분은 두지 않으며, 교사가 수업 시간에 맞춰 어느 화면에서든 멈추고 이어갑니다. 단계·화면 번호의 단일 출처는 `LESSON_STEPS`/`LESSON_SCREENS` 표이며, 번호를 다른 곳에 적지 않습니다. 각 화면은 `kind`(narrative/content/activity/reflect/write/summary)와 연결된 활동 상태 `stage`를 갖습니다.
+학생이 처음부터 지도에 던져지지 않도록, 앱은 **4개 진행 구간과 6개 주요 화면**의 수업 흐름으로 진행됩니다. 차시 구분은 두지 않으며, 교사가 수업 시간에 맞춰 어느 화면에서든 멈추고 이어갑니다. 단계·화면 번호의 단일 출처는 `LESSON_STEPS`/`LESSON_SCREENS` 표이며, 번호를 다른 곳에 적지 않습니다. 각 화면은 `kind`(narrative/content/activity/reflect/write/summary)와 연결된 활동 상태 `stage`를 갖습니다.
 
-- `LessonShell`: 단계 표시줄(완료 표시·잠김), 화면 카드, 이전/다음/건너뛰기, 소단계 점. 혼자 탐사·학생·교사가 같은 셸을 씁니다.
-- `screens.tsx`: 화면 id별 본문(설명·자기 분석·쓰기·결론)과 활동 화면의 과제 정의(`ACTIVITY_TASKS`: 질문·힌트·할 일·보이는 패널·초기 레이어·공개 카드·관찰 메모·선택 응답·교사 팁).
-- `ActivityFrame`: 과제 머리 + 끼워 넣은 `Workspace`(embedded, 패널 선택, `stageOverride`로 화면이 활동 상태를 정함) + 응답 입력.
-- 응답은 `InquiryRecord.responses[screenId]`에 저장되고(탐사실은 `saveResponses`로 서버에), 보고서 "관찰 기록과 자기 분석"에 실립니다.
-- 교실: 교사의 `teacher:setScreen`이 `RoomMeta.screen`과 활동 상태·공개를 함께 바꿉니다. 학생은 교사 화면까지만 갈 수 있고(`maxScreen`), 기본은 "따라가기"이며 끌 수 있습니다. 활동 화면에서 각자 작업 중에도 교사가 화면을 넘기면 따라가므로, 교사는 참가 현황의 제출 표시를 보고 넘깁니다.
-- 이동 조건: 최초 추론 그리기 화면은 제출 후, 수정 추론 그리기 화면은 제출 후에만 다음으로 갑니다(화면 번호는 표에서만 관리). 설명 위주 화면은 건너뛰기가 있습니다.
+- `LessonShell`: 현재 구간을 표시하고 역할에 맞게 이동을 제공한다. 학생은 교사보다 앞서 갈 수 없고, 제출 후에는 기다리는 안내를 본다. 교사는 다음 활동 이름이 적힌 버튼으로 이동한다.
+- `screens.tsx`: 지진 관찰, 첫 추론, 화산을 보고 수정, 판 경계 비교, 설명·한계 작성, 결과. 이전 관찰 화면의 응답은 보고서에 보존한다.
+- `ActivityFrame`과 embedded `Workspace`: 지도 위에 패널을 겹치지 않는다. 그리기 조작은 지도 아래, 보기·자료 설정과 시간 설정은 접힌 영역에 둔다. 공개 카드는 생략한다.
+- 학생의 첫 선은 제출 후 편집하지 못하며 수정 초안은 별도로 보존한다. 설명 초안은 탭의 sessionStorage에 보존해 교사의 화면 이동으로 사라지지 않게 한다.
+- 단계 이동은 관련 자료를 열고 이전 활동의 입력 잠금을 해제한다. 다른 학생의 선은 별도의 교사 공개 동작에서만 열린다.
+- step/sub 식별자는 기존 저장 기록과 호환되도록 유지한다. 화면 위치가 폐지된 경우 대응하는 새 활동으로 매핑한다.
