@@ -4,13 +4,15 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { Line2 } from 'three/examples/jsm/lines/Line2.js'
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js'
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js'
+import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js'
+import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js'
 import type { LngLat, ViewState } from '@shared/domain/types'
 import { densify, lngLatToVec3, vec3ToLngLat } from '@shared/geo/sphere'
 import { prefersReducedMotion } from '../settings/settings'
-import { GUESS_STYLES, MAP_COLORS } from './colors'
+import { MAP_COLORS, PLATE_STYLE, guessStyle } from './colors'
 import { buildLandTexture } from './landTexture'
 import type { Interaction, MapEvents, MapRenderer, MapScene } from './types'
-import { ALL_LAYERS } from './types'
+import { ALL_LAYERS, isGuessVisible } from './types'
 
 const EPOCH_DAY = 86_400_000
 const toDays = (ms: number) => (ms - Date.UTC(2000, 0, 1)) / EPOCH_DAY
@@ -72,7 +74,7 @@ export class Globe3D implements MapRenderer {
   private sphereMat: THREE.MeshStandardMaterial
   private quakes: THREE.Points | null = null
   private volcanoes: THREE.Points | null = null
-  private plates: THREE.LineSegments | null = null
+  private plates = new THREE.Group()
   private guessGroup = new THREE.Group()
   private draftLine: Line2 | null = null
   private liveLine: Line2 | null = null
@@ -88,7 +90,7 @@ export class Globe3D implements MapRenderer {
   private texKey = ''
   private quakeKey = ''
   private volcanoKey = ''
-  private plateKey = ''
+  private plateData: MapScene['plates'] | null = null
   private guessKey = ''
   private raycaster = new THREE.Raycaster()
   private stroke: LngLat[] | null = null
@@ -106,6 +108,7 @@ export class Globe3D implements MapRenderer {
     this.sphereMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.92, metalness: 0.0 })
     this.globe = new THREE.Mesh(new THREE.SphereGeometry(1, 96, 64), this.sphereMat)
     this.scene.add(this.globe)
+    this.scene.add(this.plates)
     const atmos = new THREE.Mesh(new THREE.SphereGeometry(1.012, 64, 48), new THREE.ShaderMaterial({ vertexShader: ATMOS_VERT, fragmentShader: ATMOS_FRAG, transparent: true, side: THREE.BackSide, depthWrite: false, blending: THREE.AdditiveBlending }))
     this.scene.add(atmos)
     this.scene.add(new THREE.AmbientLight(0xffffff, 1.35))
@@ -302,10 +305,9 @@ export class Globe3D implements MapRenderer {
 
   private updatePlates() {
     const pl = this.data.plates
-    const key = `${pl.length}`
-    if (key !== this.plateKey) {
-      this.plateKey = key
-      if (this.plates) { this.scene.remove(this.plates); this.plates.geometry.dispose() }
+    if (pl !== this.plateData) {
+      this.plateData = pl
+      this.clearGroup(this.plates)
       const verts: number[] = []
       for (const f of pl) for (const line of f.lines) {
         const d = densify(line, 1.5)
@@ -314,12 +316,16 @@ export class Globe3D implements MapRenderer {
           verts.push(a[0], a[1], a[2], b[0], b[1], b[2])
         }
       }
-      const geo = new THREE.BufferGeometry()
-      geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(verts), 3))
-      this.plates = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: MAP_COLORS.plate, transparent: true, opacity: 0.95 }))
-      this.scene.add(this.plates)
+      if (verts.length) for (const [width, opacity] of [[PLATE_STYLE.haloWidth, PLATE_STYLE.haloOpacity], [PLATE_STYLE.width, 0.95]]) {
+        const geo = new LineSegmentsGeometry()
+        geo.setPositions(verts)
+        const mat = new LineMaterial({ color: MAP_COLORS.plate, linewidth: width, transparent: true, opacity, depthTest: true, depthWrite: false })
+        mat.resolution.set(this.w, this.h)
+        this.lineMaterials.push(mat)
+        this.plates.add(new LineSegments2(geo, mat))
+      }
     }
-    if (this.plates) this.plates.visible = this.data.layers.plates
+    this.plates.visible = this.data.layers.plates
   }
 
   private makeFatLine(points: LngLat[], color: string, width: number, dashed: boolean, opacity = 1): Line2 {
@@ -349,14 +355,13 @@ export class Globe3D implements MapRenderer {
   private updateGuesses() {
     const L = this.data.layers
     // 선·점 개수가 같아도 재제출한 좌표는 다를 수 있다.
-    const key = JSON.stringify(this.data.guesses.map((g) => [g.id, g.style, g.lines])) + `|${L.myFirst}${L.myRevised}${L.others}${this.data.overlapEmphasis}`
+    const key = JSON.stringify(this.data.guesses.map((g) => [g.id, g.style, g.layer, g.lines])) + `|${L.myFirst}${L.myRevised}${L.others}${this.data.overlapEmphasis}`
     if (key === this.guessKey) return
     this.guessKey = key
     this.clearGroup(this.guessGroup)
     for (const g of this.data.guesses) {
-      const visible = g.style === 'first' ? L.myFirst : g.style === 'revised' ? L.myRevised : g.style === 'others' ? L.others : true
-      if (!visible) continue
-      const st = GUESS_STYLES[g.style]
+      if (!isGuessVisible(g, L)) continue
+      const st = guessStyle(g)
       const op = g.style === 'others' ? (this.data.overlapEmphasis ? 0.4 : 0.6) : 1
       for (const line of g.lines) if (line.length >= 2) this.guessGroup.add(this.makeFatLine(line, st.color, st.width, st.dash.length > 0, op))
     }

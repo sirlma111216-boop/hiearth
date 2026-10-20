@@ -13,8 +13,15 @@ export type GuessStyle = 'first' | 'revised' | 'others' | 'highlightA' | 'highli
 export interface RenderGuess {
   id: string
   style: GuessStyle
+  /** 선택 강조 여부와 별개로 이 선을 켜고 끄는 레이어 */
+  layer?: 'myFirst' | 'myRevised' | 'others'
   lines: LngLat[][]
   label?: string
+}
+
+export function isGuessVisible(guess: RenderGuess, layers: Record<LayerId, boolean>): boolean {
+  const layer = guess.layer ?? (guess.style === 'first' ? 'myFirst' : guess.style === 'revised' ? 'myRevised' : guess.style === 'draft' ? undefined : 'others')
+  return layer ? layers[layer] : true
 }
 
 export interface MapScene {

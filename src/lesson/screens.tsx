@@ -325,7 +325,7 @@ export function renderScreen(id: string, ctx: ScreenCtx): ReactNode {
         <Card kicker="Step 8 · 3" title="내 선과 모형 비교하기">
           <div className="compare-grid">
             <MiniMap ctx={ctx} kind="first" caption="최초 추론 (흰 실선) · 지진만" />
-            <MiniMap ctx={ctx} kind="revised" withVolcano withPlates caption="수정 추론 (황동 점선) · 화산·판 경계 모형 함께" />
+            <MiniMap ctx={ctx} kind="revised" withVolcano withPlates caption="수정 추론 (하늘색 점선) · 화산·판 경계 모형 함께" />
           </div>
           <Choices ctx={ctx} prompt="비교해 보니 (모두 고르기)" options={['내 선과 모형이 거의 겹치는 구간이 있다', '내 선이 모형과 많이 어긋난 구간이 있다', '모형의 경계 밖에서 일어난 지진을 찾았다', '화산은 대부분 경계 위에 있다', '바다 한가운데 경계(대서양)를 나는 긋지 않았다', '처음보다 수정 추론이 모형에 더 가깝다']} />
           <Note ctx={ctx} prompt="가장 크게 어긋난 곳은 어디이고, 그 이유는 무엇이라고 생각하나요?" />

@@ -6,6 +6,7 @@ import { Icon } from '../ui/Icon'
 import type { LessonData } from '../data/lesson'
 import type { RecentData, RecentFeedId } from '../data/recent'
 import { RECENT_FEEDS } from '../data/recent'
+import { LayerSwatch, LAYER_ITEMS } from './LayerControls'
 
 export interface DatasetChoice { kind: 'lesson' | 'recent'; feed: RecentFeedId }
 
@@ -36,21 +37,16 @@ interface Props {
 const LAYER_LABELS: { id: LayerId; label: string; swatch: string }[] = [
   { id: 'earthquakes', label: '지진 (원)', swatch: 'quake' },
   { id: 'volcanoes', label: '화산 (삼각형)', swatch: 'volcano' },
-  { id: 'plates', label: '판 경계 모형 (실선)', swatch: 'plate' },
+  { id: 'plates', label: '판 경계 모형 (굵은 붉은 실선)', swatch: 'plate' },
   { id: 'myFirst', label: '내 최초 선 (흰 실선)', swatch: 'first' },
-  { id: 'myRevised', label: '내 수정 선 (황동 점선)', swatch: 'revised' },
+  { id: 'myRevised', label: '내 수정 선 (하늘색 점선)', swatch: 'revised' },
   { id: 'others', label: '다른 사람 선 (회색)', swatch: 'others' },
 ]
 
 function Swatch({ kind }: { kind: string }) {
-  switch (kind) {
-    case 'quake': return <svg className="legend-swatch" viewBox="0 0 14 14"><circle cx="7" cy="7" r="4" fill="#f2c57c" /></svg>
-    case 'volcano': return <svg className="legend-swatch" viewBox="0 0 14 14"><path d="M7 2l5 10H2z" fill="#f08e85" /></svg>
-    case 'plate': return <svg className="legend-swatch" viewBox="0 0 14 14"><path d="M1 9c3-5 6 5 12-2" stroke="#66d8c1" strokeWidth="2" fill="none" /></svg>
-    case 'first': return <svg className="legend-swatch" viewBox="0 0 14 14"><path d="M1 7h12" stroke="#fff" strokeWidth="2.4" /></svg>
-    case 'revised': return <svg className="legend-swatch" viewBox="0 0 14 14"><path d="M1 7h12" stroke="#d2af75" strokeWidth="2.4" strokeDasharray="4 2" /></svg>
-    default: return <svg className="legend-swatch" viewBox="0 0 14 14"><path d="M1 7h12" stroke="rgba(168,188,196,0.7)" strokeWidth="1.6" /></svg>
-  }
+  const id = ({ quake: 'earthquakes', volcano: 'volcanoes', plate: 'plates', first: 'myFirst', revised: 'myRevised' } as Record<string, LayerId>)[kind]
+  const item = LAYER_ITEMS.find((layer) => layer.id === id)
+  return <LayerSwatch shape={item?.shape ?? 'line'} color={item?.color ?? 'rgba(168,188,196,0.7)'} />
 }
 
 export function EvidenceDrawer(p: Props) {
@@ -107,7 +103,7 @@ export function EvidenceDrawer(p: Props) {
             <label key={l.id} className={'layer-toggle' + (unavailable ? ' is-disabled' : '')} title={unavailable}>
               <input type="checkbox" checked={!!p.layers[l.id] && !unavailable} disabled={!!unavailable} onChange={(e) => p.onLayer(l.id, e.target.checked)} />
               <Swatch kind={l.swatch} />
-              <span>{l.label}</span>
+              <span>{p.readOnly ? l.label.replace('내 ', '학생 ') : l.label}</span>
               {unavailable ? <span className="tiny muted" style={{ marginLeft: 'auto' }}>{unavailable}</span> : null}
             </label>
           )

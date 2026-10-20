@@ -24,6 +24,7 @@ import { InfoPanel } from './InfoPanel'
 import { RevealScene } from './RevealScene'
 import { StageBanner } from './StageBanner'
 import { TimeControls } from './TimeControls'
+import { LayerControls } from './LayerControls'
 import { useTimePlayback } from './useTimePlayback'
 import type { ConnectionState } from '../realtime/RoomClient'
 
@@ -141,8 +142,13 @@ export function Workspace(p: WorkspaceProps) {
   const layerAvailability: Partial<Record<LayerId, string>> = {}
   if (!volcanoesAllowed) layerAvailability.volcanoes = '아직 공개 전'
   if (!boundariesAllowed) layerAvailability.plates = '아직 공개 전'
-  if (!state.record.firstGuess && role !== 'teacher') layerAvailability.myFirst = '제출 전'
-  if (!state.record.revisedGuess && role !== 'teacher') layerAvailability.myRevised = '제출 전'
+  if (role === 'teacher') {
+    if (!p.room?.sharedGuesses.some((g) => g.kind === 'first')) layerAvailability.myFirst = '제출 전'
+    if (!p.room?.sharedGuesses.some((g) => g.kind === 'revised')) layerAvailability.myRevised = '제출 전'
+  } else {
+    if (!state.record.firstGuess && info.drawing !== 'first') layerAvailability.myFirst = '제출 전'
+    if (!state.record.revisedGuess && info.drawing !== 'revised') layerAvailability.myRevised = '제출 전'
+  }
   if (role === 'solo') layerAvailability.others = '혼자 탐사'
   else if (p.room && !p.room.sharedGuesses.length) layerAvailability.others = '공개 전'
 
@@ -193,7 +199,7 @@ export function Workspace(p: WorkspaceProps) {
         const idx = hl.indexOf(g.participantId)
         const style = idx === 0 ? 'highlightA' : idx === 1 ? 'highlightB' : 'others'
         if (style === 'others' && g.kind === 'revised' && hl.length) continue
-        out.push({ id: `${g.participantId}:${g.kind}`, style, lines: g.guess.lines.map((l) => l.points), label: g.nickname ?? undefined })
+        out.push({ id: `${g.participantId}:${g.kind}`, style, layer: role === 'teacher' ? (g.kind === 'first' ? 'myFirst' : 'myRevised') : 'others', lines: g.guess.lines.map((l) => l.points), label: g.nickname ?? undefined })
       }
     }
     if (role !== 'teacher') {
@@ -201,7 +207,7 @@ export function Workspace(p: WorkspaceProps) {
       if (state.record.revisedGuess && draftKind !== 'revised') out.push({ id: 'my-revised', style: 'revised', lines: state.record.revisedGuess.guess.lines.map((l) => l.points) })
       if (draftKind !== 'none' && !(draftKind === 'first' && state.record.firstGuess)) {
         const style = draftKind === 'first' ? 'first' : 'revised'
-        for (const l of state.draft.lines) out.push({ id: 'draft:' + l.id, style: state.draft.selectedLineId === l.id ? 'draft' : style, lines: [l.points] })
+        for (const l of state.draft.lines) out.push({ id: 'draft:' + l.id, style: state.draft.selectedLineId === l.id ? 'draft' : style, layer: draftKind === 'first' ? 'myFirst' : 'myRevised', lines: [l.points] })
       }
     }
     return out
@@ -216,32 +222,44 @@ export function Workspace(p: WorkspaceProps) {
     timeRange: playback.timeRange,
     minMagnitude: minMag,
     guesses,
-    draft: !firstSubmitted && interactionMode === 'draw' && (state.draft.pending.length || state.draft.cursor) ? { points: state.draft.pending, mode: state.draft.mode, cursor: state.draft.cursor } : null,
+    draft: !firstSubmitted && layers[info.drawing === 'revised' ? 'myRevised' : 'myFirst'] && interactionMode === 'draw' && (state.draft.pending.length || state.draft.cursor) ? { points: state.draft.pending, mode: state.draft.mode, cursor: state.draft.cursor } : null,
     selected: pick,
     overlapEmphasis,
-  }), [earthquakes, data.volcanoes, data.plates, data.land, layers, volcanoesAllowed, boundariesAllowed, playback.timeRange, minMag, guesses, interactionMode, state.draft.pending, state.draft.mode, state.draft.cursor, pick, overlapEmphasis, firstSubmitted])
+  }), [earthquakes, data.volcanoes, data.plates, data.land, layers, volcanoesAllowed, boundariesAllowed, playback.timeRange, minMag, guesses, interactionMode, state.draft.pending, state.draft.mode, state.draft.cursor, pick, overlapEmphasis, firstSubmitted, info.drawing])
 
   const visibleCount = useMemo(() => visibleEarthquakeCount(scene), [scene])
 
   const inputLocked = role === 'student' && (roomMeta?.inputLocked || roomMeta?.status !== 'open')
   const drawingLocked = inputLocked || firstSubmitted || role === 'teacher' || info.drawing === 'none' || state.submit.status === 'pending' || state.submit.status === 'queued'
   const interaction = useMemo<Interaction>(() => ({ mode: drawingLocked ? 'move' : interactionMode, drawMode: state.draft.mode }), [drawingLocked, interactionMode, state.draft.mode])
+  const showDrawingLayer = useCallback(() => {
+    const id = info.drawing === 'revised' ? 'myRevised' : 'myFirst'
+    setLayers((current) => current[id] ? current : { ...current, [id]: true })
+  }, [info.drawing])
+  const changeLayer = useCallback((id: LayerId, on: boolean) => {
+    setLayers((current) => ({ ...current, [id]: on }))
+    setPick(null)
+  }, [])
+  const showBaseMap = useCallback(() => {
+    setLayers({ earthquakes: false, volcanoes: false, plates: false, myFirst: false, myRevised: false, others: false })
+    setPick(null)
+  }, [])
 
   const events = useMemo<MapEvents>(() => ({
     onViewChange: (v) => { currentView.current = v },
     onPick: (pk) => { setPick(pk); if (pk) void audio.play('ui-tap') },
-    onDrawPoint: (pt) => { if (!drawingLocked) dispatch({ type: 'draft/addPoint', point: pt }) },
-    onDrawProgress: () => { /* 진행 중 미리보기는 렌더러가 직접 그린다 */ },
-    onDrawStroke: (pts) => { if (!drawingLocked) dispatch({ type: 'draft/stroke', points: pts, zoom: currentView.current.zoom }) },
+    onDrawPoint: (pt) => { if (!drawingLocked) { showDrawingLayer(); dispatch({ type: 'draft/addPoint', point: pt }) } },
+    onDrawProgress: () => { if (!drawingLocked) showDrawingLayer() },
+    onDrawStroke: (pts) => { if (!drawingLocked) { showDrawingLayer(); dispatch({ type: 'draft/stroke', points: pts, zoom: currentView.current.zoom }) } },
     onDrawCursor: (pt) => { if (!drawingLocked) dispatch({ type: 'draft/cursor', point: pt }) },
     onDrawKey: (k) => {
       if (drawingLocked) return
-      if (k === 'add') dispatch({ type: 'draft/addPoint', point: mapRef.current?.centerLngLat() ?? currentView.current.center })
+      if (k === 'add') { showDrawingLayer(); dispatch({ type: 'draft/addPoint', point: mapRef.current?.centerLngLat() ?? currentView.current.center }) }
       if (k === 'undo') dispatch({ type: 'draft/undoPoint' })
       if (k === 'finish') dispatch({ type: 'draft/finishPending' })
     },
     onInteract: () => { if (followTeacher) { /* 사용자가 조작하면 따라가기를 끄지 않고 유지하되 강제 이동만 적용 */ } },
-  }), [dispatch, drawingLocked, followTeacher])
+  }), [dispatch, drawingLocked, followTeacher, showDrawingLayer])
 
   // ----- 증거 담기 -----
   const captureEvidence = useCallback(async () => {
@@ -297,11 +315,12 @@ export function Workspace(p: WorkspaceProps) {
   const nextDisabledReason = role === 'solo' && stage === 'firstGuess' && !state.record.firstGuess ? '최초 추론을 제출하면 다음으로 넘어갈 수 있습니다' : undefined
 
   return (
-    <div className={'workspace' + (presentation ? ' presentation' : '') + (p.embedded ? ' embedded' : '')}>
+    <div className={'workspace' + (presentation ? ' presentation' : '') + (p.embedded ? ' embedded' : '') + (!presentation && show.banner ? ' has-stage-banner' : '')}>
       <div className="workspace-bg" aria-hidden="true"><img src="/images/workspace-atmosphere.webp" alt="" /></div>
 
       <MapView ref={mapRef} mode={mapMode} scene={scene} interaction={interaction} events={events} initialView={initialView} requestedView={requestedView}
         onModeFallback={(reason) => { setMapMode('2d'); toast.push(reason, 'info') }} />
+      <LayerControls layers={layers} unavailable={layerAvailability} teacher={role === 'teacher'} onLayer={changeLayer} onBase={showBaseMap} />
 
       {!presentation && show.banner ? (
         <StageBanner stage={stage} maxStage={maxStage} onStage={p.onStage} nextDisabledReason={nextDisabledReason} role={role} />
@@ -333,7 +352,7 @@ export function Workspace(p: WorkspaceProps) {
       {!presentation && show.evidence ? (
         <aside className={'ws-left' + (leftOpen ? '' : ' is-closed')} aria-label="증거 서랍">
           <EvidenceDrawer lesson={data} recent={recent} choice={choice} onChoice={setChoice} onRefreshRecent={() => void refreshRecent(choice.feed)}
-            layers={layers} layerAvailability={layerAvailability} onLayer={(id, on) => setLayers((l) => ({ ...l, [id]: on }))}
+            layers={layers} layerAvailability={layerAvailability} onLayer={changeLayer}
             minMagnitude={minMag} onMinMagnitude={setMinMag} evidence={state.record.evidence}
             canCapture={state.record.evidence.length < MAX_EVIDENCE && !inputLocked} captureDisabledReason={inputLocked ? '입력이 잠겨 있습니다' : undefined} onCapture={() => void captureEvidence()}
             onEvidenceNote={updateEvidence} onEvidenceRemove={removeEvidence} visibleCount={visibleCount} inputLocked={inputLocked}
@@ -378,7 +397,7 @@ export function Workspace(p: WorkspaceProps) {
             <div style={{ overflow: 'auto', minHeight: 0 }}>
               {sheet === 'evidence' ? (
                 <EvidenceDrawer lesson={data} recent={recent} choice={choice} onChoice={setChoice} onRefreshRecent={() => void refreshRecent(choice.feed)}
-                  layers={layers} layerAvailability={layerAvailability} onLayer={(id, on) => setLayers((l) => ({ ...l, [id]: on }))}
+                  layers={layers} layerAvailability={layerAvailability} onLayer={changeLayer}
                   minMagnitude={minMag} onMinMagnitude={setMinMag} evidence={state.record.evidence}
                   canCapture={state.record.evidence.length < MAX_EVIDENCE && !inputLocked} captureDisabledReason={inputLocked ? '입력이 잠겨 있습니다' : undefined} inputLocked={inputLocked} onCapture={() => { setSheet(null); setTimeout(() => void captureEvidence(), 350) }}
                   onEvidenceNote={updateEvidence} onEvidenceRemove={removeEvidence} visibleCount={visibleCount} readOnly={role === 'teacher'} />

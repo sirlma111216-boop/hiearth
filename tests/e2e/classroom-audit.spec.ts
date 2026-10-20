@@ -128,6 +128,46 @@ test('최초 추론 12개를 복사해도 수정 추론을 더 그리고 서버�
   } finally { await close() }
 })
 
+test('교사와 학생은 공개된 추론 레이어를 독립적으로 비교하고 강조 선도 숨길 수 있다', async ({ browser }, testInfo) => {
+  const { teacher, student, close } = await classroom(browser)
+  try {
+    await step(teacher, 4, 2)
+    await draw(student)
+    await submit(student)
+    await step(teacher, 6, 2)
+    for (const page of [teacher, student]) await page.getByRole('button', { name: '지도에서 확인하기' }).click()
+    for (let i = 0; i < 3; i++) await next(teacher)
+    await expect(student.getByRole('heading', { name: '수정 추론 그리기', exact: true })).toBeVisible()
+    await draw(student, 60)
+    await submit(student, true)
+    await step(teacher, 7, 2)
+    for (const page of [teacher, student]) await page.getByRole('button', { name: '지도에서 확인하기' }).click()
+    await teacher.getByRole('button', { name: '점검학생', exact: true }).click()
+    const controls = teacher.getByRole('group', { name: '지도 레이어' })
+    const studentControls = student.getByRole('group', { name: '지도 레이어' })
+    await controls.getByRole('button', { name: '지도만 보기', exact: true }).click()
+    const whitePixels = () => teacher.locator('.workspace-map canvas').evaluate((canvas: HTMLCanvasElement) => {
+      const rgba = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height).data
+      let n = 0
+      for (let i = 0; i < rgba.length; i += 4) if (rgba[i] > 220 && rgba[i + 1] > 220 && rgba[i + 2] > 220) n++
+      return n
+    })
+    await expect.poll(whitePixels).toBe(0)
+    await expect(studentControls.getByRole('button', { name: '내 최초 선', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    await controls.getByRole('button', { name: '학생 최초 선', exact: true }).click()
+    await expect.poll(whitePixels).toBeGreaterThan(10)
+    await controls.getByRole('button', { name: '학생 최초 선', exact: true }).click()
+    await expect.poll(whitePixels).toBe(0)
+    await studentControls.getByRole('button', { name: '지도만 보기', exact: true }).click()
+    await controls.getByRole('button', { name: '판의 경계', exact: true }).click()
+    await teacher.getByRole('button', { name: '전체화면 발표', exact: true }).first().click()
+    await expect(controls.getByRole('button', { name: '판의 경계', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    await expect(studentControls.getByRole('button', { name: '판의 경계', exact: true })).toHaveAttribute('aria-pressed', 'false')
+    await teacher.screenshot({ path: testInfo.outputPath('teacher-plate-layer.png'), fullPage: true })
+    await teacher.getByRole('button', { name: '발표 모드 종료' }).click()
+  } finally { await close() }
+})
+
 test('관찰 메모: 다른 교실 상태가 도착해도 저장 대기 중인 입력을 잃지 않는다', async ({ browser }) => {
   const { teacher, student, code, close } = await classroom(browser)
   try {

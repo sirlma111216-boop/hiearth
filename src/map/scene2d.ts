@@ -2,7 +2,8 @@
 import { geoEquirectangular, geoPath, geoGraticule } from 'd3-geo'
 import type { LngLat, ViewState } from '@shared/domain/types'
 import { normalizeLng } from '@shared/geo/sphere'
-import { GUESS_STYLES, MAP_COLORS, quakeRadius } from './colors'
+import { GUESS_STYLES, MAP_COLORS, PLATE_STYLE, guessStyle, quakeRadius } from './colors'
+import { isGuessVisible } from './types'
 import type { MapScene } from './types'
 
 const D2R = Math.PI / 180
@@ -108,13 +109,18 @@ export function drawScene(ctx: CanvasRenderingContext2D, scene: MapScene, view: 
     ctx.stroke()
   }
 
-  // 판 경계 (연구 모형) — 한 종류의 선
+  // 판 경계 모형: 넓은 반투명 테두리와 굵은 붉은 선. 내 추론은 그 위에 그린다.
   if (scene.layers.plates) {
     ctx.beginPath()
     for (const f of scene.plates) for (const line of f.lines) strokeLngLatLine(ctx, P, line)
     ctx.strokeStyle = MAP_COLORS.plate
-    ctx.lineWidth = 1.8
+    ctx.lineWidth = PLATE_STYLE.haloWidth
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
     ctx.setLineDash([])
+    ctx.globalAlpha = PLATE_STYLE.haloOpacity
+    ctx.stroke()
+    ctx.lineWidth = PLATE_STYLE.width
     ctx.globalAlpha = 0.95
     ctx.stroke()
     ctx.globalAlpha = 1
@@ -177,9 +183,8 @@ export function drawScene(ctx: CanvasRenderingContext2D, scene: MapScene, view: 
   for (const style of order) {
     for (const g of scene.guesses) {
       if (g.style !== style) continue
-      const visible = style === 'first' ? scene.layers.myFirst : style === 'revised' ? scene.layers.myRevised : style === 'others' ? scene.layers.others : true
-      if (!visible) continue
-      const st = GUESS_STYLES[style]
+      if (!isGuessVisible(g, scene.layers)) continue
+      const st = guessStyle(g)
       ctx.beginPath()
       for (const line of g.lines) strokeLngLatLine(ctx, P, line)
       ctx.strokeStyle = st.color

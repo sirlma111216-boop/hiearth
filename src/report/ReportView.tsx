@@ -138,7 +138,7 @@ export function ReportView({ data, record, nickname, title, roomCode, onImport, 
           </figure>
           <figure className="report-map" style={{ margin: 0 }}>
             {maps?.revised ? <img src={maps.revised} alt="수정 추론 지도: 지진·화산·판 경계 모형과 수정한 선" /> : <div style={{ aspectRatio: '16/10' }} />}
-            <figcaption>수정한 생각 · 황동 점선 (화산·판 경계 모형 함께 표시)</figcaption>
+            <figcaption>수정한 생각 · 하늘색 점선 (화산·판 경계 모형 함께 표시)</figcaption>
           </figure>
         </div>
         <p className="tiny muted" style={{ marginTop: 6 }}>두 지도는 같은 중심과 배율로 그렸습니다. 지도는 저장된 좌표 자료로 다시 그린 것입니다.</p>

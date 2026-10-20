@@ -27,9 +27,9 @@
   --c-quake: #f2c57c;
   --c-quake-recent: #ffd9a0;
   --c-volcano: #f08e85;
-  --c-plate: #66d8c1;
+  --c-plate: #ff496c;
   --c-first: #ffffff;
-  --c-revised: #d2af75;
+  --c-revised: #55cfff;
   --c-others: rgba(168, 188, 196, 0.55);
   --c-highlight-a: #ffffff;
   --c-highlight-b: #d2af75;
@@ -547,3 +547,24 @@ table.data th { color: var(--muted); font-weight: 600; font-size: 13px; }
 .lesson-main.is-activity .activity-stage { height: clamp(560px, calc(100svh - 300px), 980px); }
 .workspace.embedded .ws-left, .workspace.embedded .ws-right { width: 300px; }
 .sb-split { display: none; }
+
+/* 자료를 겹치거나 빼는 조작은 서랍을 열지 않고 지도에서 바로 한다. */
+.workspace { --map-top-inset: var(--topbar-h); --map-banner-space: 0px; --map-layers-space: 86px; }
+.workspace.has-stage-banner { --map-banner-space: 84px; }
+.workspace.embedded, .teach-main .workspace, .workspace.presentation { --map-top-inset: 0px; }
+.map-layers { position: absolute; top: calc(var(--map-top-inset) + var(--map-banner-space) + 8px); left: 12px; right: 12px; z-index: 8; height: calc(var(--map-layers-space) - 16px); padding: 8px; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+.map-layer { display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 0; min-height: 44px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 8px; background: rgba(7,21,30,0.65); color: var(--muted-strong); font: inherit; font-size: 13px; cursor: pointer; }
+.map-layer[aria-pressed="true"] { border-color: var(--primary); background: rgba(102,216,193,0.12); color: var(--text); box-shadow: inset 0 -2px var(--primary); }
+.map-layer:disabled { opacity: 0.5; cursor: not-allowed; }
+.map-layer small { display: block; font-size: 10px; color: var(--muted); }
+.map-layer .legend-swatch { width: 24px; height: 16px; flex: none; }
+.workspace .workspace-map, .workspace.embedded .workspace-map, .teach-main .workspace .workspace-map, .workspace.presentation .workspace-map { inset: calc(var(--map-top-inset) + var(--map-banner-space) + var(--map-layers-space)) 0 0; }
+.workspace .ws-rail, .workspace.embedded .ws-rail { top: calc(var(--map-top-inset) + var(--map-banner-space) + var(--map-layers-space) + 12px); }
+.workspace .ws-left, .workspace .ws-right, .workspace.embedded .ws-left, .workspace.embedded .ws-right { top: calc(var(--map-top-inset) + var(--map-banner-space) + var(--map-layers-space) + 12px); }
+.workspace .ws-conn, .workspace.embedded .ws-conn { top: calc(var(--map-top-inset) + var(--map-banner-space) + var(--map-layers-space) + 60px) !important; }
+@media (max-width: 1100px) {
+  .workspace { --map-layers-space: 128px; }
+  .map-layers { grid-template-columns: repeat(3, minmax(0, 1fr)); left: 8px; right: 8px; padding: 6px; }
+  .map-layer { font-size: 12px; padding: 3px; gap: 4px; }
+  .map-layer .legend-swatch { width: 18px; }
+}
