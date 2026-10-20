@@ -22,6 +22,8 @@ export type SubmitStatus = 'idle' | 'pending' | 'queued' | 'saved' | 'error'
 export interface InquiryState {
   record: InquiryRecord
   draft: DraftState
+  /** 아직 저장하지 않은 설명은 화면 이동·서버 스냅샷과 별도로 보존한다. */
+  explanationDraft?: { text?: string; limitations?: string }
   /** 제출 처리 상태 (서버 확인 전에는 '제출 완료'로 표시하지 않는다) */
   submit: { kind: 'first' | 'revised' | null; status: SubmitStatus; message: string | null }
 }
@@ -51,6 +53,8 @@ export type Action =
   | { type: 'evidence/update'; id: string; patch: Partial<Pick<Evidence, 'title' | 'note'>> }
   | { type: 'evidence/remove'; id: string }
   | { type: 'explanation/set'; text: string; limitations: string }
+  | { type: 'explanation/draft'; field: 'text' | 'limitations'; value: string }
+  | { type: 'explanation/clearDraft' }
   | { type: 'record/replace'; record: InquiryRecord }
   | { type: 'responses/set'; id: string; patch: { text?: string; choices?: string[] } }
 
@@ -140,8 +144,17 @@ export function reducer(state: InquiryState, a: Action): InquiryState {
       return { ...state, record: { ...record, evidence: record.evidence.map((e) => (e.id === a.id ? { ...e, ...a.patch } : e)) } }
     case 'evidence/remove':
       return { ...state, record: { ...record, evidence: record.evidence.filter((e) => e.id !== a.id) } }
-    case 'explanation/set':
-      return { ...state, record: { ...record, explanation: { text: a.text, limitations: a.limitations, updatedAt: Date.now() } } }
+    case 'explanation/draft':
+      return { ...state, explanationDraft: { ...state.explanationDraft, [a.field]: a.value } }
+    case 'explanation/clearDraft':
+      return { ...state, explanationDraft: undefined }
+    case 'explanation/set': {
+      const explanationDraft = { ...state.explanationDraft }
+      // 저장 응답을 기다리는 동안 추가로 입력한 내용은 지우지 않는다.
+      if (explanationDraft.text === a.text) delete explanationDraft.text
+      if (explanationDraft.limitations === a.limitations) delete explanationDraft.limitations
+      return { ...state, explanationDraft, record: { ...record, explanation: { text: a.text, limitations: a.limitations, updatedAt: Date.now() } } }
+    }
     case 'record/replace':
       return { ...state, record: a.record }
     case 'responses/set': {

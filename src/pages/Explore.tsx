@@ -48,6 +48,7 @@ function ExploreInner({ data }: { data: LessonData }) {
     clearLocalRecord()
     dispatch({ type: 'record/replace', record: emptyRecord(data.datasetVersion) })
     dispatch({ type: 'draft/clear' })
+    dispatch({ type: 'explanation/clearDraft' })
     onScreen(FIRST_SCREEN)
     setAskResume(false)
     toast.push('새로 시작합니다. 이전 기록은 지웠습니다.')

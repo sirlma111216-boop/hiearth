@@ -6,7 +6,6 @@ import WebSocket from 'ws'
 const N = Number(process.argv[2] ?? 40)
 const BASE = process.argv[3] ?? 'http://localhost:5173'
 const ORIGIN = BASE
-const SECRET = process.env.TEACHER_SECRET ?? 'local-dev-teacher-secret-2026'
 const log = (...a) => console.log('[load-sim]', ...a)
 
 const cookieOf = (res) => (res.headers.get('set-cookie') ?? '').split(';')[0]
@@ -14,7 +13,7 @@ const guessFor = (i) => ({ lines: [{ id: 'l' + i, points: Array.from({ length: 3
 
 async function main() {
   const t0 = performance.now()
-  const create = await fetch(`${BASE}/api/teach/rooms`, { method: 'POST', headers: { 'content-type': 'application/json', origin: ORIGIN, 'x-teacher-key': SECRET }, body: JSON.stringify({ settings: { title: '부하 시험', datasetId: 'usgs-lesson-2015-2025-m5', startRegion: 'world', maxParticipants: Math.max(N, 1), ttlMs: 3600_000, groups: [] } }) })
+  const create = await fetch(`${BASE}/api/teach/rooms`, { method: 'POST', headers: { 'content-type': 'application/json', origin: ORIGIN }, body: JSON.stringify({ settings: { title: '부하 시험', datasetId: 'usgs-lesson-2015-2025-m5', startRegion: 'world', maxParticipants: Math.max(N, 1), ttlMs: 3600_000, groups: [] } }) })
   if (!create.ok) throw new Error('create failed ' + create.status + ' ' + (await create.text()))
   const teacherCookie = cookieOf(create)
   const { code } = await create.json()

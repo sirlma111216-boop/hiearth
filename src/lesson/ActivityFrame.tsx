@@ -21,7 +21,7 @@ export interface ActivityTask {
 
 interface Props {
   task: ActivityTask
-  done?: boolean[]
+  done?: (boolean | undefined)[]
   workspace: Omit<WorkspaceProps, 'embedded' | 'panels' | 'reveal' | 'initialLayers'>
   response?: ScreenResponse
   onResponse?: (patch: { text?: string; choices?: string[] }) => void
@@ -48,7 +48,7 @@ export function ActivityFrame({ task, done = [], workspace, response, onResponse
         </div>
         {task.steps?.length ? (
           <div className="task-steps" aria-label="할 일">
-            {task.steps.map((s, i) => <span key={s} className={done[i] ? 'ok' : ''}>{done[i] ? '✓' : '○'} {s}</span>)}
+            {task.steps.map((s, i) => <span key={s} className={done[i] ? 'ok' : ''}>{done[i] === undefined ? '•' : done[i] ? '✓' : '○'} {s}</span>)}
           </div>
         ) : null}
       </div>

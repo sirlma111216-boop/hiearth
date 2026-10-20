@@ -17,6 +17,8 @@ export interface ScreenCtx {
   response: ScreenResponse | undefined
   setResponse: (patch: { text?: string; choices?: string[] }) => void
   onExplanation: (text: string, limitations: string) => void
+  explanationDraft?: { text?: string; limitations?: string }
+  onExplanationDraft: (field: 'text' | 'limitations', value: string) => void
   goNext: () => void
   reportHref?: string
   nickname?: string
@@ -373,8 +375,8 @@ export function renderScreen(id: string, ctx: ScreenCtx): ReactNode {
 }
 
 function ExplainWrite({ ctx }: { ctx: ScreenCtx }) {
-  const [text, setText] = useState(ctx.record.explanation?.text ?? '')
   const saved = ctx.record.explanation?.text ?? ''
+  const text = ctx.explanationDraft?.text ?? saved
   return (
     <Card kicker="Step 9 · 1" title="나의 설명">
       <div className="prose-lg"><p>관찰한 증거를 근거로 <em>지진·화산의 분포와 판의 경계가 어떻게 관련되는지</em> 설명해 보세요. 아래 증거를 "증거 1에서 …"처럼 인용하면 좋은 설명이 됩니다. 이 글은 자동으로 채워지지 않습니다.</p></div>
@@ -382,7 +384,7 @@ function ExplainWrite({ ctx }: { ctx: ScreenCtx }) {
       {ctx.role === 'teacher' ? <div className="teacher-hint"><strong>진행 팁</strong> "증거 번호를 적어라", "띠·경계·화산 세 낱말을 쓰라"처럼 조건을 걸면 글이 구체적이 됩니다. 입력 잠금으로 마감하세요.</div> : (
         <div className="response">
           <label className="label" htmlFor="exp-text">나의 설명 <span className="muted num">({text.length}/1500)</span></label>
-          <textarea id="exp-text" className="textarea" style={{ minHeight: 160 }} maxLength={1500} value={text} onChange={(e) => setText(e.target.value)} placeholder="예: 증거 1에서 태평양 가장자리를 따라 지진이 띠를 이루고, 증거 2에서 화산도 같은 띠 위에 … 따라서 …" />
+          <textarea id="exp-text" className="textarea" style={{ minHeight: 160 }} maxLength={1500} value={text} onChange={(e) => ctx.onExplanationDraft('text', e.target.value)} placeholder="예: 증거 1에서 태평양 가장자리를 따라 지진이 띠를 이루고, 증거 2에서 화산도 같은 띠 위에 … 따라서 …" />
           <div className="row between"><span className="tiny muted">{saved === text ? (saved ? '저장됨' : '') : '저장되지 않은 변경'}</span><Button variant="primary" icon="check" onClick={() => ctx.onExplanation(text, ctx.record.explanation?.limitations ?? '')} disabledReason={saved === text ? '바뀐 내용이 없습니다' : undefined}>설명 저장</Button></div>
         </div>
       )}
@@ -391,8 +393,8 @@ function ExplainWrite({ ctx }: { ctx: ScreenCtx }) {
 }
 
 function ExplainLimits({ ctx }: { ctx: ScreenCtx }) {
-  const [text, setText] = useState(ctx.record.explanation?.limitations ?? '')
   const saved = ctx.record.explanation?.limitations ?? ''
+  const text = ctx.explanationDraft?.limitations ?? saved
   const chosen = ctx.response?.choices ?? []
   const options = ['규모 5.0보다 작은 지진은 자료에 없다', '화산 목록은 지금 분화 중인 목록이 아니다', '지진(10년)과 화산(1만 년)의 기간이 다르다', '최근 지진이 없는 곳이 안전하다는 뜻은 아니다', '판 경계는 연구 모형이라 실제와 다를 수 있다', '내 선은 대충 그어져서 정확하지 않다']
   const toggle = (o: string) => ctx.setResponse({ choices: chosen.includes(o) ? chosen.filter((c) => c !== o) : [...chosen, o] })
@@ -407,7 +409,7 @@ function ExplainLimits({ ctx }: { ctx: ScreenCtx }) {
           </div>
           <div className="response">
             <label className="label" htmlFor="exp-lim">내 말로 쓰기</label>
-            <textarea id="exp-lim" className="textarea" style={{ minHeight: 100 }} maxLength={1500} value={text} onChange={(e) => setText(e.target.value)} placeholder="예: 규모 5 이상만 봤기 때문에 작은 지진이 많은 곳은 …" />
+            <textarea id="exp-lim" className="textarea" style={{ minHeight: 100 }} maxLength={1500} value={text} onChange={(e) => ctx.onExplanationDraft('limitations', e.target.value)} placeholder="예: 규모 5 이상만 봤기 때문에 작은 지진이 많은 곳은 …" />
             <div className="row between"><span className="tiny muted">{saved === text ? (saved ? '저장됨' : '') : '저장되지 않은 변경'}</span><Button variant="primary" icon="check" onClick={() => ctx.onExplanation(ctx.record.explanation?.text ?? '', text)} disabledReason={saved === text ? '바뀐 내용이 없습니다' : undefined}>한계 저장</Button></div>
           </div>
         </>

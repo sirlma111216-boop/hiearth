@@ -1,12 +1,8 @@
 // Workers 실행 환경(workerd)에서 Durable Object 탐사실을 검증한다.
 import { SELF, env } from 'cloudflare:test'
-import { describe, expect, it, beforeAll } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 const ORIGIN = 'http://example.com'
-const SECRET = 'test-teacher-secret-0123456789'
-
-interface Env { TEACHER_SECRET: string }
-const E = env as unknown as Env
 
 function cookieOf(res: Response): string {
   const sc = res.headers.get('set-cookie') ?? ''
@@ -16,7 +12,7 @@ function cookieOf(res: Response): string {
 async function createRoom(settings: Record<string, unknown> = {}) {
   const res = await SELF.fetch(`${ORIGIN}/api/teach/rooms`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', origin: ORIGIN, 'x-teacher-key': SECRET, 'cf-connecting-ip': `10.0.0.${Math.floor(Math.random() * 250)}` },
+    headers: { 'content-type': 'application/json', origin: ORIGIN, 'cf-connecting-ip': `10.0.0.${Math.floor(Math.random() * 250)}` },
     body: JSON.stringify({ settings: { title: '테스트 탐사실', datasetId: 'usgs-lesson-2015-2025-m5', startRegion: 'world', maxParticipants: 3, ttlMs: 3_600_000, groups: ['1모둠', '2모둠'], ...settings } }),
   })
   const body = (await res.json()) as { code: string; recoveryToken: string; meta: { expiresAt: number } }
@@ -74,17 +70,15 @@ function send(socket: WebSocket, msg: Record<string, unknown>) {
 const guess = { lines: [{ id: 'l1', points: [[139, 35], [141, 40], [143, 44]], mode: 'polyline', rawPointCount: 3 }] }
 
 describe('탐사실 생성과 권한', () => {
-  beforeAll(() => { expect(E.TEACHER_SECRET).toBe(SECRET) })
-
-  it('비밀 값 없이 생성할 수 없다', async () => {
-    const res = await SELF.fetch(`${ORIGIN}/api/teach/rooms`, { method: 'POST', headers: { 'content-type': 'application/json', origin: ORIGIN, 'x-teacher-key': 'wrong' }, body: JSON.stringify({ settings: {} }) })
-    expect(res.status).toBe(401)
+  it('잘못된 설정은 생성 전에 거부한다', async () => {
+    const res = await SELF.fetch(`${ORIGIN}/api/teach/rooms`, { method: 'POST', headers: { 'content-type': 'application/json', origin: ORIGIN }, body: JSON.stringify({ settings: {} }) })
+    expect(res.status).toBe(400)
   })
   it('다른 출처의 생성 요청은 거부한다', async () => {
-    const res = await SELF.fetch(`${ORIGIN}/api/teach/rooms`, { method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://evil.example', 'x-teacher-key': SECRET }, body: JSON.stringify({ settings: {} }) })
+    const res = await SELF.fetch(`${ORIGIN}/api/teach/rooms`, { method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://evil.example' }, body: JSON.stringify({ settings: {} }) })
     expect(res.status).toBe(403)
   })
-  it('생성 → 공개 정보 → 교사 상태', async () => {
+  it('비밀 값 없이 생성 → 생성자만 교사 상태 접근', async () => {
     const { res, body, cookie } = await createRoom()
     expect(res.status).toBe(201)
     expect(body.code).toMatch(/^[A-Z0-9]{6}$/)

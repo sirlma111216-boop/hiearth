@@ -12,7 +12,6 @@ import { randomToken, sha256Hex } from './auth'
 
 export interface Env {
   ROOM: DurableObjectNamespace<RoomDO>
-  TEACHER_SECRET?: string
   APP_ENV?: string
 }
 

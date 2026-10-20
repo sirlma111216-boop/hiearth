@@ -1,4 +1,4 @@
-// 교사 탐사실 생성 — 배포 비밀 값은 서버에서만 확인하고 브라우저에 저장하지 않는다.
+// 탐사실을 만든 브라우저에만 교사 세션을 발급한다.
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import type { RoomSettings } from '@shared/domain/types'
@@ -13,7 +13,6 @@ import { formatKst } from '@shared/geo/time'
 
 export default function Teach() {
   const navigate = useNavigate()
-  const [key, setKey] = useState('')
   const [title, setTitle] = useState('지진과 화산, 판의 경계 찾기')
   const [region, setRegion] = useState('world')
   const [max, setMax] = useState(40)
@@ -38,10 +37,9 @@ export default function Teach() {
       groups: groups.split(',').map((g) => g.trim()).filter(Boolean).slice(0, 12),
     }
     try {
-      const r = await api.createRoom(key, settings)
+      const r = await api.createRoom(settings)
       rememberTeacherRoom({ code: r.code, title: settings.title, createdAt: r.meta.createdAt, expiresAt: r.meta.expiresAt })
       setCreated({ code: r.code, recoveryToken: r.recoveryToken, expiresAt: r.meta.expiresAt })
-      setKey('')
     } catch (err) {
       setError(err instanceof ApiError ? err.message : '탐사실을 만들지 못했습니다.')
     } finally {
@@ -86,10 +84,9 @@ export default function Teach() {
               <div className="field grow"><label htmlFor="t-hours">보관 시간</label><input id="t-hours" className="input num" type="number" min={1} max={24} value={hours} onChange={(e) => setHours(Number(e.target.value))} /></div>
             </div>
             <div className="field"><label htmlFor="t-groups">모둠 목록 (쉼표로 구분, 비우면 모둠 없음)</label><input id="t-groups" className="input" value={groups} onChange={(e) => setGroups(e.target.value)} /></div>
-            <div className="field"><label htmlFor="t-key">교사 비밀 값</label><input id="t-key" className="input" type="password" value={key} autoComplete="off" onChange={(e) => setKey(e.target.value)} />
-              <span className="hint">학교에서 배포 시 정한 값입니다. 브라우저에 저장되지 않습니다.</span></div>
+            <p className="hint">탐사실을 만든 브라우저에 교사 권한이 저장됩니다. 학생에게는 입장 코드나 링크를 공유하세요.</p>
             {error ? <p className="error-text" role="alert">{error}</p> : null}
-            <Button type="submit" variant="primary" size="lg" loading={busy} disabledReason={!key ? '교사 비밀 값을 입력하세요' : undefined}>탐사실 만들기</Button>
+            <Button type="submit" variant="primary" size="lg" loading={busy}>탐사실 만들기</Button>
           </form>
           <div className="stack" style={{ gap: 20 }}>
             {rooms.length ? (

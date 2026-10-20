@@ -61,7 +61,7 @@ Durable Object RoomDO (worker/room.ts, SQLite)
 
 ## 보안
 
-- 교사 생성: `x-teacher-key` 헤더를 Cloudflare secret `TEACHER_SECRET`과 상수 시간 비교. 성공 시 DO가 32바이트 세션을 발급하고 해시만 저장, 쿠키 `eet_<CODE>`(HttpOnly, SameSite=Lax, https면 Secure).
+- 교사 생성: 공용 암호 없이 생성하되 Origin·요청 제한·설정을 검증한다. DO가 생성자에게 32바이트 세션을 발급하고 해시만 저장, 쿠키 `eet_<CODE>`(HttpOnly, SameSite=Lax, https면 Secure).
 - 교사 복구 토큰은 생성 시 한 번 표시, 해시로 저장, 세션 발급에만 사용. 공개 입장 URL에는 들어가지 않습니다.
 - 참가자 세션 쿠키 `eep_<CODE>`. 모든 HTTP/WS에서 역할과 방을 검증. 다른 방 쿠키·추측 ID·학생의 교사 이벤트는 거부됩니다(테스트: `tests/workers/room.test.ts`).
 - Origin/Sec-Fetch-Site 확인(상태 변경·WS), 메모리 토큰 버킷(생성 5/분, 입장 12/분, API 2/초) + DO 입장 시도 120/분, 메시지 1.6MB·본문 크기 제한, 별명 정리, CSV 수식 주입 방지.

@@ -111,6 +111,14 @@ export function nextStepStart(ref: ScreenRef): ScreenRef | null {
   return { step: ref.step + 1, sub: 1 }
 }
 
+/** 연속된 선택 설명만 넘긴다. 관찰·그리기·쓰기 활동은 건너뛰지 않는다. */
+export function skipExplanation(ref: ScreenRef): ScreenRef | null {
+  const i = screenIndex(ref)
+  if (i < 0 || !LESSON_SCREENS[i].skippable) return null
+  const next = LESSON_SCREENS.slice(i + 1).find(s => !s.skippable)
+  return next ? { step: next.step, sub: next.sub } : null
+}
+
 export const screenStage = (ref: ScreenRef): Stage => screenAt(ref.step, ref.sub)?.stage ?? 'observe'
 
 /** a가 b보다 앞이거나 같은 화면인가 */

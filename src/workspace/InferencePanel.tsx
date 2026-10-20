@@ -35,7 +35,9 @@ export function InferencePanel(p: Props) {
   const [confirmClear, setConfirmClear] = useState(false)
   const [preview, setPreview] = useState<GuessKind | null>(null)
   const firstDone = !!p.state.record.firstGuess
-  const canDraw = drawingKind !== 'none' && !p.inputLocked && p.role !== 'teacher'
+  const firstSubmitted = drawingKind === 'first' && firstDone
+  const submitting = p.state.submit.status === 'pending' || p.state.submit.status === 'queued'
+  const canDraw = drawingKind !== 'none' && !firstSubmitted && !submitting && !p.inputLocked && p.role !== 'teacher'
   const totalPoints = d.lines.reduce((n, l) => n + l.points.length, 0)
   const submitLabel = drawingKind === 'first' ? '최초 추론 제출' : '수정 추론 제출'
   const submitStatus = p.state.submit
@@ -44,6 +46,8 @@ export function InferencePanel(p: Props) {
     <div className="ws-panel panel">
       <h2><Icon name="draw" /> 추론 도구</h2>
       {p.role === 'teacher' ? <p className="hint" style={{ marginTop: 8 }}>교사 화면에서는 선을 그리지 않습니다. 학생 추론은 공개 후 지도에 겹쳐 보입니다.</p> : null}
+      {firstSubmitted && p.role !== 'teacher' ? <p className="hint" style={{ marginTop: 8 }} role="status">최초 추론 제출 완료 · 선 {p.state.record.firstGuess!.guess.lines.length}개<br />지도에는 제출한 선이 표시됩니다. 이 선은 그대로 보관하고, 화산 증거를 본 뒤 수정 추론에서 고칩니다.</p> : null}
+      {submitting && !firstSubmitted && p.role !== 'teacher' ? <p className="hint" style={{ marginTop: 8 }} role="status">{p.state.submit.message ?? '전송 중입니다.'}</p> : null}
 
       {canDraw ? (
         <>

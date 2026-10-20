@@ -78,6 +78,7 @@ export function Workspace(p: WorkspaceProps) {
   const { data, state, dispatch, role } = p
   const stage = p.stageOverride ?? state.record.stage
   const info = STAGE_INFO[stage]
+  const firstSubmitted = info.drawing === 'first' && !!state.record.firstGuess
   const roomMeta = p.room?.meta
   const maxStage: Stage = role === 'student' && roomMeta ? roomMeta.stage : 'wrapUp'
 
@@ -191,9 +192,9 @@ export function Workspace(p: WorkspaceProps) {
       }
     }
     if (role !== 'teacher') {
-      if (state.record.firstGuess && (draftKind !== 'first')) out.push({ id: 'my-first', style: 'first', lines: state.record.firstGuess.guess.lines.map((l) => l.points) })
+      if (state.record.firstGuess) out.push({ id: 'my-first', style: 'first', lines: state.record.firstGuess.guess.lines.map((l) => l.points) })
       if (state.record.revisedGuess && draftKind !== 'revised') out.push({ id: 'my-revised', style: 'revised', lines: state.record.revisedGuess.guess.lines.map((l) => l.points) })
-      if (draftKind !== 'none') {
+      if (draftKind !== 'none' && !(draftKind === 'first' && state.record.firstGuess)) {
         const style = draftKind === 'first' ? 'first' : 'revised'
         for (const l of state.draft.lines) out.push({ id: 'draft:' + l.id, style: state.draft.selectedLineId === l.id ? 'draft' : style, lines: [l.points] })
       }
@@ -210,32 +211,32 @@ export function Workspace(p: WorkspaceProps) {
     timeRange: playback.timeRange,
     minMagnitude: minMag,
     guesses,
-    draft: interactionMode === 'draw' && (state.draft.pending.length || state.draft.cursor) ? { points: state.draft.pending, mode: state.draft.mode, cursor: state.draft.cursor } : null,
+    draft: !firstSubmitted && interactionMode === 'draw' && (state.draft.pending.length || state.draft.cursor) ? { points: state.draft.pending, mode: state.draft.mode, cursor: state.draft.cursor } : null,
     selected: pick,
     overlapEmphasis,
-  }), [earthquakes, data.volcanoes, data.plates, data.land, layers, volcanoesAllowed, boundariesAllowed, playback.timeRange, minMag, guesses, interactionMode, state.draft.pending, state.draft.mode, state.draft.cursor, pick, overlapEmphasis])
+  }), [earthquakes, data.volcanoes, data.plates, data.land, layers, volcanoesAllowed, boundariesAllowed, playback.timeRange, minMag, guesses, interactionMode, state.draft.pending, state.draft.mode, state.draft.cursor, pick, overlapEmphasis, firstSubmitted])
 
   const visibleCount = useMemo(() => visibleEarthquakeCount(scene), [scene])
 
-  const interaction = useMemo<Interaction>(() => ({ mode: role === 'teacher' || info.drawing === 'none' ? 'move' : interactionMode, drawMode: state.draft.mode }), [role, info.drawing, interactionMode, state.draft.mode])
-
   const inputLocked = role === 'student' && (roomMeta?.inputLocked || roomMeta?.status !== 'open')
+  const drawingLocked = inputLocked || firstSubmitted || role === 'teacher' || info.drawing === 'none' || state.submit.status === 'pending' || state.submit.status === 'queued'
+  const interaction = useMemo<Interaction>(() => ({ mode: drawingLocked ? 'move' : interactionMode, drawMode: state.draft.mode }), [drawingLocked, interactionMode, state.draft.mode])
 
   const events = useMemo<MapEvents>(() => ({
     onViewChange: (v) => { currentView.current = v },
     onPick: (pk) => { setPick(pk); if (pk) void audio.play('ui-tap') },
-    onDrawPoint: (pt) => { if (!inputLocked) dispatch({ type: 'draft/addPoint', point: pt }) },
+    onDrawPoint: (pt) => { if (!drawingLocked) dispatch({ type: 'draft/addPoint', point: pt }) },
     onDrawProgress: () => { /* 진행 중 미리보기는 렌더러가 직접 그린다 */ },
-    onDrawStroke: (pts) => { if (!inputLocked) dispatch({ type: 'draft/stroke', points: pts, zoom: currentView.current.zoom }) },
-    onDrawCursor: (pt) => dispatch({ type: 'draft/cursor', point: pt }),
+    onDrawStroke: (pts) => { if (!drawingLocked) dispatch({ type: 'draft/stroke', points: pts, zoom: currentView.current.zoom }) },
+    onDrawCursor: (pt) => { if (!drawingLocked) dispatch({ type: 'draft/cursor', point: pt }) },
     onDrawKey: (k) => {
-      if (inputLocked) return
+      if (drawingLocked) return
       if (k === 'add') dispatch({ type: 'draft/addPoint', point: mapRef.current?.centerLngLat() ?? currentView.current.center })
       if (k === 'undo') dispatch({ type: 'draft/undoPoint' })
       if (k === 'finish') dispatch({ type: 'draft/finishPending' })
     },
     onInteract: () => { if (followTeacher) { /* 사용자가 조작하면 따라가기를 끄지 않고 유지하되 강제 이동만 적용 */ } },
-  }), [dispatch, inputLocked, followTeacher])
+  }), [dispatch, drawingLocked, followTeacher])
 
   // ----- 증거 담기 -----
   const captureEvidence = useCallback(async () => {

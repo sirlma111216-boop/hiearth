@@ -1,7 +1,7 @@
 // 수업 셸 — 단계 표시줄, 화면 카드, 이전/다음. 혼자 탐사·학생·교사가 같은 셸을 쓴다.
 import { Component, useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react'
 import type { GuessKind, Evidence, ViewState, MapMode } from '@shared/domain/types'
-import { LESSON_STEPS, LESSON_SCREENS, SUBS, screenAt, screenIndex, screenLE, nextScreen, prevScreen, nextStepStart, screenLabel, screenStage, refOf, type ScreenRef } from '@shared/domain/lesson'
+import { LESSON_STEPS, LESSON_SCREENS, SUBS, screenAt, screenIndex, screenLE, nextScreen, prevScreen, skipExplanation, screenLabel, screenStage, refOf, type ScreenRef } from '@shared/domain/lesson'
 import type { LessonData } from '../data/lesson'
 import type { Action, InquiryState } from '../inquiry/engine'
 import { Button } from '../ui/Button'
@@ -72,7 +72,7 @@ export function LessonShell(p: LessonShellProps) {
 
   const next = nextScreen(screen)
   const prev = prevScreen(screen)
-  const skip = def.skippable ? nextStepStart(screen) : null
+  const skip = skipExplanation(screen)
 
   // 응답 저장 (디바운스 전송)
   const sendTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -90,16 +90,17 @@ export function LessonShell(p: LessonShellProps) {
 
   const ctx = {
     data: p.data, record, role, classroom: !!p.room, response: responses[def.id], setResponse, onExplanation: p.onExplanation,
+    explanationDraft: state.explanationDraft,
+    onExplanationDraft: (field: 'text' | 'limitations', value: string) => dispatch({ type: 'explanation/draft', field, value }),
     goNext: () => go(next), reportHref: p.reportHref, nickname: p.nickname,
   }
 
   const task = ACTIVITY_TASKS[def.id]
-  const done = useMemo<boolean[]>(() => {
+  const done = useMemo<(boolean | undefined)[]>(() => {
     switch (def.id) {
-      case 'observe-close': return [true, record.evidence.length > 0]
-      case 'guess-draw': return [true, state.draft.lines.length > 0 || !!record.firstGuess, !!record.firstGuess]
-      case 'volcano-compare': return [record.evidence.length > 1, false]
-      case 'revise-draw': return [true, !!record.revisedGuess]
+      case 'observe-close': return [undefined, record.evidence.length > 0]
+      case 'guess-draw': return [undefined, state.draft.lines.length > 0 || !!record.firstGuess, !!record.firstGuess]
+      case 'revise-draw': return [undefined, !!record.revisedGuess]
       default: return []
     }
   }, [def.id, record.evidence.length, record.firstGuess, record.revisedGuess, state.draft.lines.length])
@@ -152,7 +153,7 @@ export function LessonShell(p: LessonShellProps) {
         <Button variant="secondary" icon="arrowLeft" onClick={() => go(prev)} disabledReason={!prev ? '첫 화면입니다' : undefined}>이전</Button>
         <span className="readout">{screenLabel(screen)} · {screenIndex(screen) + 1}/{LESSON_SCREENS.length}</span>
         <Button variant="primary" iconRight="arrowRight" onClick={() => go(next)} disabledReason={!next ? '마지막 화면입니다' : blockReason ?? (next && !allowed(next) ? '선생님이 다음 화면을 열면 넘어갈 수 있습니다' : undefined)}>다음</Button>
-        {skip && allowed(skip) ? <button type="button" className="btn btn-quiet btn-sm btn-skip" onClick={() => go(skip)}>건너뛰기 <Icon name="next" /></button> : null}
+        {skip && allowed(skip) ? <button type="button" className="btn btn-quiet btn-sm btn-skip" onClick={() => go(skip)}>설명 건너뛰기 <Icon name="next" /></button> : null}
       </nav>
     </div>
   )

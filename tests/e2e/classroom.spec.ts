@@ -1,8 +1,6 @@
 // E2E: 교사 1 + 학생 2, 분리된 브라우저 컨텍스트. 수업 화면을 교사가 넘기고 학생이 따라오며 활동한다.
 import { test, expect, type Browser, type Page } from '@playwright/test'
 
-const TEACHER_SECRET = process.env.TEACHER_SECRET ?? 'local-dev-teacher-secret-2026'
-
 async function newPage(browser: Browser, viewport = { width: 1440, height: 900 }): Promise<Page> {
   const ctx = await browser.newContext({ viewport, locale: 'ko-KR' })
   const page = await ctx.newPage()
@@ -52,7 +50,7 @@ test('교실 전체 흐름', async ({ browser }) => {
   await teacher.goto('/teach')
   await teacher.getByLabel('활동 제목').fill('E2E 탐사')
   await teacher.getByLabel('참여 상한').fill('5')
-  await teacher.getByLabel('교사 비밀 값').fill(TEACHER_SECRET)
+  await expect(teacher.getByLabel('교사 비밀 값')).toHaveCount(0)
   await teacher.getByRole('button', { name: '탐사실 만들기' }).click()
   const dialog = teacher.getByRole('dialog')
   await expect(dialog).toContainText('입장 코드')
@@ -115,6 +113,9 @@ test('교실 전체 흐름', async ({ browser }) => {
   await expect(s1.getByText('그린 선 1/12')).toBeVisible()
   await submitGuess(s1, '최초 추론 제출')
   await expect(s1.getByText('최초 추론이 서버에 저장되었습니다.')).toBeVisible()
+  await expect(s1.getByRole('button', { name: '최초 추론 제출', exact: true })).toHaveCount(0)
+  await expect(s1.getByRole('button', { name: '그리기', exact: true })).toHaveCount(0)
+  await expect(s1.getByText('최초 추론 제출 완료', { exact: false })).toBeVisible()
   await expect(teacher.locator('.participant').filter({ hasText: '파란고래' }).locator('.flag.on').first()).toBeVisible()
 
   // 학생 2 (모바일): 바텀시트로 그리기 도구 열고 제출
@@ -167,11 +168,17 @@ test('교실 전체 흐름', async ({ browser }) => {
   await teacherStep(teacher, 8)
   await expect(readout(s1)).toContainText('8/8', { timeout: 15_000 })
   await s1.getByLabel(/나의 설명/).fill('태평양 가장자리를 따라 지진과 화산이 띠를 이룬다.')
+  // 교사가 이동시켜도 저장 전 설명·한계가 각각 보존된다.
+  await teacherNext(teacher)
+  await s1.getByLabel('내 말로 쓰기').fill('규모 5 이상만 보았다.')
+  await teacher.locator('.lesson-nav').getByRole('button', { name: '이전', exact: true }).click()
+  await expect(s1.getByLabel(/나의 설명/)).toHaveValue('태평양 가장자리를 따라 지진과 화산이 띠를 이룬다.')
   await s1.getByRole('button', { name: '설명 저장' }).click()
   await expect(s1.getByText('서버에 저장되었습니다.')).toBeVisible()
   await teacherNext(teacher)
-  await s1.getByLabel('내 말로 쓰기').fill('규모 5 이상만 보았다.')
+  await expect(s1.getByLabel('내 말로 쓰기')).toHaveValue('규모 5 이상만 보았다.')
   await s1.getByRole('button', { name: '한계 저장' }).click()
+  await expect(s1.locator('.response').getByText('저장됨', { exact: true })).toBeVisible()
 
   // ---- 새로고침 후 복구 (같은 화면, 기록 유지) ----
   await s1.reload()
@@ -204,6 +211,8 @@ test('교실 전체 흐름', async ({ browser }) => {
   const res = await anon.request.get(`http://localhost:5173/api/teach/rooms/${code}/state`)
   expect(res.status()).toBe(401)
   await anon.close()
+  await teacher.request.delete(`/api/teach/rooms/${code}`, { headers: { origin: 'http://localhost:5173' } })
+  await Promise.all([teacher.context().close(), s1.context().close(), s2.context().close()])
 })
 
 test('혼자 탐사: 처음부터 끝까지', async ({ browser }) => {

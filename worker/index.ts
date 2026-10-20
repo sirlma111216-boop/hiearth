@@ -1,9 +1,10 @@
 // 지구 탐사대 Worker — 정적 자산 + /api 라우팅 + 탐사실 Durable Object 중계.
 import { RoomDO, type Env } from './room'
-import { cookieHeader, clearCookieHeader, isValidRoomCode, normalizeRoomCode, parseCookies, participantCookieName, randomRoomCode, safeEqual, teacherCookieName } from './auth'
+import { cookieHeader, clearCookieHeader, isValidRoomCode, normalizeRoomCode, parseCookies, participantCookieName, randomRoomCode, teacherCookieName } from './auth'
 import { HttpError, RateLimiter, clientIp, errorResponse, isSameOrigin, json, readJson } from './http'
 import { recentFeed } from './proxy'
 import type { RoomSettings, RoomMeta } from '@shared/domain/types'
+import { roomSettingsSchema } from '@shared/domain/schemas'
 
 export { RoomDO }
 
@@ -157,12 +158,9 @@ async function passthrough(res: Response): Promise<Response> {
 async function createRoom(request: Request, env: Env, ip: string, secure: boolean): Promise<Response> {
   if (!isSameOrigin(request)) return errorResponse(403, 'badOrigin', '허용되지 않은 출처입니다.')
   if (!createLimiter.take(ip)) return errorResponse(429, 'rateLimited', '탐사실 생성 시도가 너무 많습니다. 1분 뒤에 다시 시도하세요.', { 'retry-after': '60' })
-  const secret = env.TEACHER_SECRET
-  if (!secret || secret.length < 8) return errorResponse(503, 'noSecret', '서버에 교사 비밀 값이 설정되어 있지 않아 탐사실을 만들 수 없습니다. 혼자 탐사는 계속 사용할 수 있습니다.')
-  const provided = request.headers.get('x-teacher-key') ?? ''
-  if (!safeEqual(provided, secret)) return errorResponse(401, 'badTeacherKey', '교사 비밀 값이 맞지 않습니다.')
   const body = await readJson<{ settings: RoomSettings }>(request, 10_000)
   if (!body || typeof body !== 'object' || !body.settings) return errorResponse(400, 'badBody', '설정이 없습니다.')
+  if (!roomSettingsSchema.safeParse(body.settings).success) return errorResponse(400, 'badSettings', '수업 설정을 확인해 주세요.')
 
   for (let attempt = 0; attempt < 6; attempt++) {
     const code = randomRoomCode()
