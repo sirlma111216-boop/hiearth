@@ -4,7 +4,7 @@ import { DurableObject } from 'cloudflare:workers'
 import type { InquiryRecord, ParticipantPublic, RoomMeta, RoomSettings, SharedGuess, Stage, GuessRevision, Guess, Evidence } from '@shared/domain/types'
 import { MAX_EVIDENCE } from '@shared/domain/types'
 import { emptyRecord, isStage, stageIndex } from '@shared/domain/activity'
-import { FIRST_SCREEN, isValidScreen, screenStage, screenLabel } from '@shared/domain/lesson'
+import { FIRST_SCREEN, isValidScreen, screenStage, screenLabel, refOf } from '@shared/domain/lesson'
 import { csvCell, joinRequestSchema, roomSettingsSchema, sanitizeNickname } from '@shared/domain/schemas'
 import { checklist } from '@shared/domain/activity'
 import { studentMessageSchema, teacherMessageSchema, PROTOCOL_VERSION, type AckMessage, type NoticeMessage, type StudentSnapshot, type TeacherSnapshot, type ServerMessage } from '@shared/protocol/messages'
@@ -791,7 +791,7 @@ export class RoomDO extends DurableObject<Env> {
         return this.scheduleBroadcast()
       }
       case 'teacher:end': {
-        this.bump(meta, { status: 'ended', endedAt: Date.now(), stage: 'wrapUp' })
+        this.bump(meta, { status: 'ended', endedAt: Date.now(), stage: 'wrapUp', screen: refOf('wrap-card'), inputLocked: true })
         this.log('teacher', 'end')
         this.notice(students, 'ended', '탐사실이 종료되었습니다. 개인 결과는 저장할 수 있습니다.')
         this.ack(ws, clientMessageId, true)

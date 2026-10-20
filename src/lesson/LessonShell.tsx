@@ -53,6 +53,7 @@ export function LessonShell(p: LessonShellProps) {
   const stepDef = LESSON_STEPS.find((s) => s.n === def.step)!
   const record = state.record
   const responses = record.responses ?? {}
+  const inputLocked = role === 'student' && !!p.room && (p.room.meta.inputLocked || p.room.meta.status !== 'open')
 
   const allowed = useCallback((ref: ScreenRef) => (role === 'student' && p.maxScreen ? screenLE(ref, p.maxScreen) : true), [role, p.maxScreen])
 
@@ -74,22 +75,21 @@ export function LessonShell(p: LessonShellProps) {
   const prev = prevScreen(screen)
   const skip = skipExplanation(screen)
 
-  // 응답 저장 (디바운스 전송)
-  const sendTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // 교실은 부모가 초안을 즉시 보관하고 전송을 묶는다. 혼자 탐사는 로컬 기록을 갱신한다.
   const setResponse = useCallback((patch: { text?: string; choices?: string[] }) => {
+    if (inputLocked) return
     dispatch({ type: 'responses/set', id: def.id, patch })
     if (!p.onResponses) return
-    if (sendTimer.current) clearTimeout(sendTimer.current)
     const snapshot = { ...(record.responses ?? {}), [def.id]: { ...(record.responses?.[def.id] ?? { updatedAt: 0 }), ...patch, updatedAt: Date.now() } }
-    sendTimer.current = setTimeout(() => p.onResponses?.(snapshot), 900)
-  }, [def.id, dispatch, p, record.responses])
+    p.onResponses(snapshot)
+  }, [def.id, dispatch, p, record.responses, inputLocked])
 
   // 단계 표시줄에서 현재 항목이 보이도록
   const barRef = useRef<HTMLDivElement>(null)
   useEffect(() => { barRef.current?.querySelector<HTMLElement>('.sb-item.is-now')?.scrollIntoView({ block: 'nearest', inline: 'center' }) }, [screen.step])
 
   const ctx = {
-    data: p.data, record, role, classroom: !!p.room, response: responses[def.id], setResponse, onExplanation: p.onExplanation,
+    data: p.data, record, role, inputLocked, classroom: !!p.room, response: responses[def.id], setResponse, onExplanation: p.onExplanation,
     explanationDraft: state.explanationDraft,
     onExplanationDraft: (field: 'text' | 'limitations', value: string) => dispatch({ type: 'explanation/draft', field, value }),
     goNext: () => go(next), reportHref: p.reportHref, nickname: p.nickname,
@@ -107,7 +107,7 @@ export function LessonShell(p: LessonShellProps) {
 
   const missingFirst = def.id === 'revise-draw' && !record.firstGuess && role !== 'teacher'
   const body = def.kind === 'activity' && task ? (
-    <ActivityFrame task={task} done={done} role={role} response={responses[def.id]} onResponse={setResponse}
+    <ActivityFrame task={task} done={done} role={role} inputLocked={inputLocked} response={responses[def.id]} onResponse={setResponse}
       notice={missingFirst ? <div className="callout brass" style={{ marginBottom: 12 }}><strong>복사할 최초 추론이 없습니다</strong>먼저 추론 단계에서 선을 그려 제출하면 그 선이 여기에 초안으로 복사됩니다. <button type="button" className="btn btn-sm btn-secondary" style={{ marginLeft: 8 }} onClick={() => go(refOf('guess-draw'))}>추론 단계로 가기</button></div> : undefined}
       workspace={{
         data: p.data, state, dispatch, role, room: p.room, onSubmit: p.onSubmit,
@@ -118,11 +118,10 @@ export function LessonShell(p: LessonShellProps) {
   ) : renderScreen(def.id, ctx)
 
   const guarded = <ScreenBoundary screenKey={def.id}>{body}</ScreenBoundary>
-  if (p.presentation) return <div className="lesson" style={{ paddingTop: 0 }}>{guarded}</div>
 
   return (
-    <div className="lesson">
-      <nav className="stepbar" ref={barRef} aria-label="수업 단계">
+    <div className="lesson" style={p.presentation ? { paddingTop: 0 } : undefined}>
+      {!p.presentation ? <nav className="stepbar" ref={barRef} aria-label="수업 단계">
         {LESSON_STEPS.map((s) => {
           const cur = s.n === screen.step
           const doneStep = s.n < screen.step
@@ -133,10 +132,11 @@ export function LessonShell(p: LessonShellProps) {
             </button>
           )
         })}
-      </nav>
+      </nav> : null}
 
-      <main className={'lesson-main' + (def.kind === 'activity' ? ' is-activity' : '')}>
-        {def.kind !== 'narrative' ? (
+      {/* 발표 모드에서도 같은 작업 공간을 유지해 지도 위치·레이어·재생 조건을 보존한다. */}
+      <main className={p.presentation ? undefined : 'lesson-main' + (def.kind === 'activity' ? ' is-activity' : '')}>
+        {!p.presentation && def.kind !== 'narrative' ? (
           <div className="screen-head">
             <div><div className="kicker">{stepDef.n}. {stepDef.long} · {def.sub}/{SUBS[def.step]}</div>{def.kind === 'activity' ? <h1>{def.title}</h1> : null}</div>
             <div className="row" style={{ gap: 6 }}>
@@ -146,15 +146,15 @@ export function LessonShell(p: LessonShellProps) {
           </div>
         ) : null}
         {guarded}
-        {(SUBS[def.step] ?? 1) > 1 ? <div className="sub-dots" aria-hidden="true">{Array.from({ length: SUBS[def.step] }, (_, i) => <span key={i} className={i + 1 === def.sub ? 'is-on' : ''} />)}</div> : null}
+        {!p.presentation && (SUBS[def.step] ?? 1) > 1 ? <div className="sub-dots" aria-hidden="true">{Array.from({ length: SUBS[def.step] }, (_, i) => <span key={i} className={i + 1 === def.sub ? 'is-on' : ''} />)}</div> : null}
       </main>
 
-      <nav className="lesson-nav" aria-label="화면 이동">
+      {!p.presentation ? <nav className="lesson-nav" aria-label="화면 이동">
         <Button variant="secondary" icon="arrowLeft" onClick={() => go(prev)} disabledReason={!prev ? '첫 화면입니다' : undefined}>이전</Button>
         <span className="readout">{screenLabel(screen)} · {screenIndex(screen) + 1}/{LESSON_SCREENS.length}</span>
         <Button variant="primary" iconRight="arrowRight" onClick={() => go(next)} disabledReason={!next ? '마지막 화면입니다' : blockReason ?? (next && !allowed(next) ? '선생님이 다음 화면을 열면 넘어갈 수 있습니다' : undefined)}>다음</Button>
         {skip && allowed(skip) ? <button type="button" className="btn btn-quiet btn-sm btn-skip" onClick={() => go(skip)}>설명 건너뛰기 <Icon name="next" /></button> : null}
-      </nav>
+      </nav> : null}
     </div>
   )
 }

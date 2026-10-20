@@ -348,7 +348,8 @@ export class Globe3D implements MapRenderer {
 
   private updateGuesses() {
     const L = this.data.layers
-    const key = JSON.stringify(this.data.guesses.map((g) => [g.id, g.style, g.lines.length, g.lines.map((l) => l.length)])) + `|${L.myFirst}${L.myRevised}${L.others}${this.data.overlapEmphasis}`
+    // 선·점 개수가 같아도 재제출한 좌표는 다를 수 있다.
+    const key = JSON.stringify(this.data.guesses.map((g) => [g.id, g.style, g.lines])) + `|${L.myFirst}${L.myRevised}${L.others}${this.data.overlapEmphasis}`
     if (key === this.guessKey) return
     this.guessKey = key
     this.clearGroup(this.guessGroup)

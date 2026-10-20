@@ -155,8 +155,11 @@ export function Workspace(p: WorkspaceProps) {
     if (stage === 'wrapUp') void audio.play('report-ready')
     if (info.drawing === 'none') setInteractionMode('move')
     else setInteractionMode('draw')
-    // 수정 단계에 들어가면 최초 추론을 초안으로 복사 (초안이 비어 있을 때만)
-    if (info.drawing === 'revised' && state.record.firstGuess && state.draft.lines.length === 0) dispatch({ type: 'draft/loadFrom', guess: state.record.firstGuess.guess })
+    // 새로고침한 경우 마지막 수정 제출에서 이어 쓴다. 최초 진입만 최초 추론을 복사한다.
+    if (info.drawing === 'revised' && state.draft.lines.length === 0) {
+      const saved = state.record.revisedGuess ?? state.record.firstGuess
+      if (saved) dispatch({ type: 'draft/loadFrom', guess: saved.guess })
+    }
     if (info.drawing === 'first' && state.record.firstGuess) setInteractionMode('move')
 
   }, [stage, volcanoesAllowed, boundariesAllowed])
@@ -264,13 +267,15 @@ export function Workspace(p: WorkspaceProps) {
   }, [state.record.evidence, mapMode, playback.timeRange, minMag, scene.layers, pick, choice, recent.data, data.datasetVersion, dispatch, p, toast])
 
   const updateEvidence = useCallback((id: string, patch: { title?: string; note?: string }) => {
+    if (inputLocked) return
     dispatch({ type: 'evidence/update', id, patch })
     p.onEvidenceChange?.(state.record.evidence.map((e) => (e.id === id ? { ...e, ...patch } : e)))
-  }, [dispatch, p, state.record.evidence])
+  }, [dispatch, p, state.record.evidence, inputLocked])
   const removeEvidence = useCallback((id: string) => {
+    if (inputLocked) return
     dispatch({ type: 'evidence/remove', id })
     p.onEvidenceChange?.(state.record.evidence.filter((e) => e.id !== id))
-  }, [dispatch, p, state.record.evidence])
+  }, [dispatch, p, state.record.evidence, inputLocked])
 
   const pickedItem = useMemo(() => {
     if (!pick) return null
@@ -329,7 +334,7 @@ export function Workspace(p: WorkspaceProps) {
             layers={layers} layerAvailability={layerAvailability} onLayer={(id, on) => setLayers((l) => ({ ...l, [id]: on }))}
             minMagnitude={minMag} onMinMagnitude={setMinMag} evidence={state.record.evidence}
             canCapture={state.record.evidence.length < MAX_EVIDENCE && !inputLocked} captureDisabledReason={inputLocked ? '입력이 잠겨 있습니다' : undefined} onCapture={() => void captureEvidence()}
-            onEvidenceNote={updateEvidence} onEvidenceRemove={removeEvidence} visibleCount={visibleCount}
+            onEvidenceNote={updateEvidence} onEvidenceRemove={removeEvidence} visibleCount={visibleCount} inputLocked={inputLocked}
             overlapEmphasis={overlapEmphasis} onOverlapEmphasis={p.room ? setOverlapEmphasis : undefined} readOnly={role === 'teacher'} />
         </aside>
       ) : null}
@@ -373,7 +378,7 @@ export function Workspace(p: WorkspaceProps) {
                 <EvidenceDrawer lesson={data} recent={recent} choice={choice} onChoice={setChoice} onRefreshRecent={() => void refreshRecent(choice.feed)}
                   layers={layers} layerAvailability={layerAvailability} onLayer={(id, on) => setLayers((l) => ({ ...l, [id]: on }))}
                   minMagnitude={minMag} onMinMagnitude={setMinMag} evidence={state.record.evidence}
-                  canCapture={state.record.evidence.length < MAX_EVIDENCE && !inputLocked} onCapture={() => { setSheet(null); setTimeout(() => void captureEvidence(), 350) }}
+                  canCapture={state.record.evidence.length < MAX_EVIDENCE && !inputLocked} captureDisabledReason={inputLocked ? '입력이 잠겨 있습니다' : undefined} inputLocked={inputLocked} onCapture={() => { setSheet(null); setTimeout(() => void captureEvidence(), 350) }}
                   onEvidenceNote={updateEvidence} onEvidenceRemove={removeEvidence} visibleCount={visibleCount} readOnly={role === 'teacher'} />
               ) : null}
               {sheet === 'tools' && role !== 'teacher' ? (

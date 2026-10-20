@@ -262,6 +262,25 @@ describe('WebSocket 규약', () => {
     expect([401, 404]).toContain(state.status)
   })
 
+  it('중간 종료 시 결과 화면으로 이동하고 늦게 도착한 입력도 막는다', async () => {
+    const room = await createRoom()
+    const code = room.body.code
+    const a = await join(code, '학생A')
+    const st = await ws(code, 'teacher', room.cookie)
+    await nextMessage<{ type: string }>(st, m => m.type === 'snapshot')
+    const sa = await ws(code, 'student', a.cookie)
+    await nextMessage<{ type: string }>(sa, m => m.type === 'snapshot')
+    await send(st, { type: 'teacher:setScreen', screen: { step: 3, sub: 1 } })
+    await send(st, { type: 'teacher:end' })
+    const late = await send(sa, { type: 'saveExplanation', explanation: { text: '종료 후 입력', limitations: '' } })
+    const state = await SELF.fetch(`${ORIGIN}/api/teach/rooms/${code}/state`, { headers: { cookie: room.cookie } })
+    const snapshot = await state.json() as { room: { screen: { step: number; sub: number }; inputLocked: boolean } }
+    sa.close(); st.close()
+    expect(late.ok).toBe(false)
+    expect(snapshot.room.screen).toEqual({ step: 8, sub: 4 })
+    expect(snapshot.room.inputLocked).toBe(true)
+  })
+
   it('WebSocket 메시지 크기·형식 제한', async () => {
     const room = await createRoom()
     const a = await join(room.body.code, '학생A')

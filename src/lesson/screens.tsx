@@ -14,6 +14,7 @@ export interface ScreenCtx {
   record: InquiryRecord
   role: 'solo' | 'student' | 'teacher'
   classroom: boolean
+  inputLocked: boolean
   response: ScreenResponse | undefined
   setResponse: (patch: { text?: string; choices?: string[] }) => void
   onExplanation: (text: string, limitations: string) => void
@@ -148,7 +149,7 @@ function Choices({ prompt, options, ctx, multi = true }: { prompt: string; optio
     <div className="response">
       <div className="label">{prompt}</div>
       <div className="choice-grid" role="group" aria-label={prompt}>
-        {options.map((o) => <label key={o} className={'choice' + (chosen.includes(o) ? ' is-on' : '')}><input type={multi ? 'checkbox' : 'radio'} checked={chosen.includes(o)} onChange={() => toggle(o)} /><span>{o}</span></label>)}
+        {options.map((o) => <label key={o} className={'choice' + (chosen.includes(o) ? ' is-on' : '')}><input type={multi ? 'checkbox' : 'radio'} disabled={ctx.inputLocked} checked={chosen.includes(o)} onChange={() => toggle(o)} /><span>{o}</span></label>)}
       </div>
     </div>
   )
@@ -159,7 +160,7 @@ function Note({ prompt, ctx, rows = 3 }: { prompt: string; ctx: ScreenCtx; rows?
   return (
     <div className="response">
       <label className="label" htmlFor={'note-' + prompt.length}>{prompt}</label>
-      <textarea id={'note-' + prompt.length} className="textarea" style={{ minHeight: rows * 28 }} maxLength={600} value={ctx.response?.text ?? ''} onChange={(e) => ctx.setResponse({ text: e.target.value })} placeholder="한두 문장이면 충분합니다." />
+      <textarea id={'note-' + prompt.length} className="textarea" disabled={ctx.inputLocked} style={{ minHeight: rows * 28 }} maxLength={600} value={ctx.response?.text ?? ''} onChange={(e) => ctx.setResponse({ text: e.target.value })} placeholder="한두 문장이면 충분합니다." />
     </div>
   )
 }
@@ -384,8 +385,8 @@ function ExplainWrite({ ctx }: { ctx: ScreenCtx }) {
       {ctx.role === 'teacher' ? <div className="teacher-hint"><strong>진행 팁</strong> "증거 번호를 적어라", "띠·경계·화산 세 낱말을 쓰라"처럼 조건을 걸면 글이 구체적이 됩니다. 입력 잠금으로 마감하세요.</div> : (
         <div className="response">
           <label className="label" htmlFor="exp-text">나의 설명 <span className="muted num">({text.length}/1500)</span></label>
-          <textarea id="exp-text" className="textarea" style={{ minHeight: 160 }} maxLength={1500} value={text} onChange={(e) => ctx.onExplanationDraft('text', e.target.value)} placeholder="예: 증거 1에서 태평양 가장자리를 따라 지진이 띠를 이루고, 증거 2에서 화산도 같은 띠 위에 … 따라서 …" />
-          <div className="row between"><span className="tiny muted">{saved === text ? (saved ? '저장됨' : '') : '저장되지 않은 변경'}</span><Button variant="primary" icon="check" onClick={() => ctx.onExplanation(text, ctx.record.explanation?.limitations ?? '')} disabledReason={saved === text ? '바뀐 내용이 없습니다' : undefined}>설명 저장</Button></div>
+          <textarea id="exp-text" className="textarea" disabled={ctx.inputLocked} style={{ minHeight: 160 }} maxLength={1500} value={text} onChange={(e) => ctx.onExplanationDraft('text', e.target.value)} placeholder="예: 증거 1에서 태평양 가장자리를 따라 지진이 띠를 이루고, 증거 2에서 화산도 같은 띠 위에 … 따라서 …" />
+          <div className="row between"><span className="tiny muted">{saved === text ? (saved ? '저장됨' : '') : '저장되지 않은 변경'}</span><Button variant="primary" icon="check" onClick={() => ctx.onExplanation(text, ctx.record.explanation?.limitations ?? '')} disabledReason={ctx.inputLocked ? '입력이 잠겨 있습니다' : saved === text ? '바뀐 내용이 없습니다' : undefined}>설명 저장</Button></div>
         </div>
       )}
     </Card>
@@ -405,12 +406,12 @@ function ExplainLimits({ ctx }: { ctx: ScreenCtx }) {
         <>
           <div className="response">
             <div className="label">해당하는 한계를 고르세요</div>
-            <div className="choice-grid">{options.map((o) => <label key={o} className={'choice' + (chosen.includes(o) ? ' is-on' : '')}><input type="checkbox" checked={chosen.includes(o)} onChange={() => toggle(o)} /><span>{o}</span></label>)}</div>
+            <div className="choice-grid">{options.map((o) => <label key={o} className={'choice' + (chosen.includes(o) ? ' is-on' : '')}><input type="checkbox" disabled={ctx.inputLocked} checked={chosen.includes(o)} onChange={() => toggle(o)} /><span>{o}</span></label>)}</div>
           </div>
           <div className="response">
             <label className="label" htmlFor="exp-lim">내 말로 쓰기</label>
-            <textarea id="exp-lim" className="textarea" style={{ minHeight: 100 }} maxLength={1500} value={text} onChange={(e) => ctx.onExplanationDraft('limitations', e.target.value)} placeholder="예: 규모 5 이상만 봤기 때문에 작은 지진이 많은 곳은 …" />
-            <div className="row between"><span className="tiny muted">{saved === text ? (saved ? '저장됨' : '') : '저장되지 않은 변경'}</span><Button variant="primary" icon="check" onClick={() => ctx.onExplanation(ctx.record.explanation?.text ?? '', text)} disabledReason={saved === text ? '바뀐 내용이 없습니다' : undefined}>한계 저장</Button></div>
+            <textarea id="exp-lim" className="textarea" disabled={ctx.inputLocked} style={{ minHeight: 100 }} maxLength={1500} value={text} onChange={(e) => ctx.onExplanationDraft('limitations', e.target.value)} placeholder="예: 규모 5 이상만 봤기 때문에 작은 지진이 많은 곳은 …" />
+            <div className="row between"><span className="tiny muted">{saved === text ? (saved ? '저장됨' : '') : '저장되지 않은 변경'}</span><Button variant="primary" icon="check" onClick={() => ctx.onExplanation(ctx.record.explanation?.text ?? '', text)} disabledReason={ctx.inputLocked ? '입력이 잠겨 있습니다' : saved === text ? '바뀐 내용이 없습니다' : undefined}>한계 저장</Button></div>
           </div>
         </>
       )}

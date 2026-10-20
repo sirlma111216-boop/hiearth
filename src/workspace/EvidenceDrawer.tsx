@@ -30,6 +30,7 @@ interface Props {
   overlapEmphasis?: boolean
   onOverlapEmphasis?: (v: boolean) => void
   readOnly?: boolean
+  inputLocked?: boolean
 }
 
 const LAYER_LABELS: { id: LayerId; label: string; swatch: string }[] = [
@@ -137,12 +138,12 @@ export function EvidenceDrawer(p: Props) {
               <div key={e.id} className="evidence-item">
                 {e.capture ? <img src={e.capture} alt={`증거 ${i + 1} 캡처`} /> : <div className="ph">캡처 없음</div>}
                 <div className="grow stack" style={{ gap: 6 }}>
-                  <input className="input" style={{ minHeight: 36, fontSize: 14 }} value={e.title} placeholder={`증거 ${i + 1} 제목`} maxLength={60} onChange={(ev) => p.onEvidenceNote(e.id, { title: ev.target.value })} aria-label={`증거 ${i + 1} 제목`} />
-                  <input className="input" style={{ minHeight: 36, fontSize: 14 }} value={e.note} placeholder="짧은 메모 (무엇이 보이나요?)" maxLength={300} onChange={(ev) => p.onEvidenceNote(e.id, { note: ev.target.value })} aria-label={`증거 ${i + 1} 메모`} />
+                  <input className="input" disabled={p.inputLocked} style={{ minHeight: 36, fontSize: 14 }} value={e.title} placeholder={`증거 ${i + 1} 제목`} maxLength={60} onChange={(ev) => p.onEvidenceNote(e.id, { title: ev.target.value })} aria-label={`증거 ${i + 1} 제목`} />
+                  <input className="input" disabled={p.inputLocked} style={{ minHeight: 36, fontSize: 14 }} value={e.note} placeholder="짧은 메모 (무엇이 보이나요?)" maxLength={300} onChange={(ev) => p.onEvidenceNote(e.id, { note: ev.target.value })} aria-label={`증거 ${i + 1} 메모`} />
                   <div className="tiny muted num">
                     {e.mapMode.toUpperCase()} · 중심 {e.view.center[1].toFixed(1)}°, {e.view.center[0].toFixed(1)}° · 배율 {e.view.zoom.toFixed(1)}× · M{e.minMagnitude}+ · {e.timeWindow ? `${isoDateUtc(e.timeWindow.start)}~${isoDateUtc(e.timeWindow.end)}` : '전체 기간'}
                   </div>
-                  <Button size="sm" variant="quiet" icon="trash" onClick={() => p.onEvidenceRemove(e.id)}>삭제</Button>
+                  <Button size="sm" variant="quiet" icon="trash" disabled={p.inputLocked} onClick={() => p.onEvidenceRemove(e.id)}>삭제</Button>
                 </div>
               </div>
             ))}

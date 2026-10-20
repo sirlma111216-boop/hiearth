@@ -11,6 +11,7 @@ import { emptyDraft, makeRevision, reducer, type InquiryState } from '../inquiry
 import { loadRoomInfo, loadRoomRecord, saveRoomRecord } from '../inquiry/localStore'
 import { LessonShell } from '../lesson/LessonShell'
 import { RoomClient, type ConnectionState } from '../realtime/RoomClient'
+import { useAutosaveDraft } from '../realtime/useAutosaveDraft'
 import { api, ApiError } from '../realtime/api'
 import { TopBar } from '../ui/TopBar'
 import { useToast } from '../ui/Toast'
@@ -73,11 +74,12 @@ function RoomInner({ code, data, initial }: { code: string; data: LessonData; in
   // 선생님 화면 따라가기 (입력 중이면 뺏지 않는다: 활동 화면은 각자 속도)
   const teacherScreen = snap.room.screen
   useEffect(() => {
-    if (!following) return
+    // 종료하면 따라가기를 꺼 둔 학생도 자신의 결과를 열 수 있어야 한다.
+    if (!following && snap.room.status === 'open') return
     if (screen.step === teacherScreen.step && screen.sub === teacherScreen.sub) return
     setScreen(teacherScreen)
     window.scrollTo({ top: 0 })
-  }, [teacherScreen, following]) // screen은 의도적으로 제외: 따라가기 중일 때만 교사 화면을 적용
+  }, [teacherScreen, following, snap.room.status]) // 직접 이전 화면을 보는 동안에는 교사 화면으로 돌려보내지 않는다.
 
   useEffect(() => {
     const client = new RoomClient({
@@ -130,17 +132,26 @@ function RoomInner({ code, data, initial }: { code: string; data: LessonData; in
     if (ref.step !== teacherScreen.step || ref.sub !== teacherScreen.sub) setFollowing(false)
   }, [snap.room.screen, teacherScreen])
 
-  const evidenceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const onEvidenceChange = useCallback((list: Evidence[]) => {
-    if (evidenceTimer.current) clearTimeout(evidenceTimer.current)
-    evidenceTimer.current = setTimeout(() => {
-      send({ type: 'saveEvidence', evidence: list }).then((ack) => { if (!ack.ok) toast.push(ack.error?.message ?? '증거 저장 실패', 'danger') }).catch(() => { /* 재연결 시 재전송 */ })
-    }, 800)
+  const saveEvidence = useCallback((list: Evidence[]) => {
+    return send({ type: 'saveEvidence', evidence: list }).then((ack) => {
+      if (!ack.ok) toast.push(ack.error?.message ?? '증거 저장 실패', 'danger')
+      return ack.ok
+    }).catch(() => false)
   }, [send, toast])
 
-  const onResponses = useCallback((responses: NonNullable<InquiryRecord['responses']>) => {
-    send({ type: 'saveResponses', responses }).then((ack) => { if (!ack.ok) toast.push(ack.error?.message ?? '응답 저장 실패', 'danger') }).catch(() => { /* 재연결 시 재전송 */ })
+  const saveResponses = useCallback((responses: InquiryRecord['responses']) => {
+    if (!responses) return Promise.resolve(false)
+    return send({ type: 'saveResponses', responses }).then((ack) => {
+      if (!ack.ok) toast.push(ack.error?.message ?? '응답 저장 실패', 'danger')
+      return ack.ok
+    }).catch(() => false)
   }, [send, toast])
+
+  const inputLocked = snap.room.inputLocked || snap.room.status !== 'open'
+  const [evidence, onEvidenceChange] = useAutosaveDraft(snap.record.evidence, inputLocked, saveEvidence, 800)
+  const [responses, onResponses] = useAutosaveDraft(snap.record.responses, inputLocked, saveResponses, 900)
+  // 다른 참가자의 접속·제출 스냅샷이 와도 저장 대기 중인 글과 증거를 화면에 유지한다.
+  const visibleState = { ...state, record: { ...state.record, evidence, responses } }
 
   const onExplanation = useCallback((text: string, limitations: string) => {
     send({ type: 'saveExplanation', explanation: { text, limitations } }).then((ack) => {
@@ -172,7 +183,7 @@ function RoomInner({ code, data, initial }: { code: string; data: LessonData; in
   return (
     <>
       <TopBar center={<span className="status-pill"><strong>{snap.room.title}</strong> · {def?.title ?? STAGE_INFO[snap.room.stage].short} · {local?.nickname ?? snap.me.nickname}</span>} />
-      <LessonShell role="student" data={data} state={state} dispatch={dispatch} screen={screen} onScreen={onScreen} maxScreen={snap.room.screen}
+      <LessonShell role="student" data={data} state={visibleState} dispatch={dispatch} screen={screen} onScreen={onScreen} maxScreen={snap.room.screen}
         following={following} onFollow={(v) => { setFollowing(v); if (v) setScreen(snap.room.screen) }}
         room={room} onSubmit={(k) => void onSubmit(k)} onEvidenceChange={onEvidenceChange} onExplanation={onExplanation} onResponses={onResponses}
         startRegion={snap.room.startRegion} reportHref={`/report/${code}?p=${snap.me.id}`} nickname={snap.me.nickname} />

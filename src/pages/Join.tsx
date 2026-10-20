@@ -24,9 +24,18 @@ export default function Join() {
     const c = code.trim().toUpperCase()
     if (c.length !== 6) { setInfo(null); return }
     let alive = true
+    let retry: ReturnType<typeof setTimeout> | undefined
     setChecking(true); setError(null)
-    api.roomInfo(c).then((i) => { if (alive) setInfo(i) }).catch((e) => { if (alive) { setInfo(null); setError(e instanceof ApiError ? e.message : '탐사실을 확인하지 못했습니다.') } }).finally(() => alive && setChecking(false))
-    return () => { alive = false }
+    const refresh = () => {
+      api.roomInfo(c).then((i) => {
+        if (!alive) return
+        setInfo(i)
+        // 잠금 해제를 기다리는 학생은 코드를 다시 입력하거나 새로고침할 필요가 없다.
+        if (i.joinLocked && i.status === 'open') retry = setTimeout(refresh, 3000)
+      }).catch((e) => { if (alive) { setInfo(null); setError(e instanceof ApiError ? e.message : '탐사실을 확인하지 못했습니다.') } }).finally(() => alive && setChecking(false))
+    }
+    refresh()
+    return () => { alive = false; clearTimeout(retry) }
   }, [code])
 
   const submit = async (e: React.FormEvent) => {

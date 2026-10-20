@@ -26,12 +26,13 @@ interface Props {
   response?: ScreenResponse
   onResponse?: (patch: { text?: string; choices?: string[] }) => void
   role: 'solo' | 'student' | 'teacher'
+  inputLocked?: boolean
   children?: ReactNode
   /** 과제 머리 아래 안내(예: 선행 조건 미충족) */
   notice?: ReactNode
 }
 
-export function ActivityFrame({ task, done = [], workspace, response, onResponse, role, children, notice }: Props) {
+export function ActivityFrame({ task, done = [], workspace, response, onResponse, role, inputLocked, children, notice }: Props) {
   const choices = response?.choices ?? []
   const toggle = (opt: string) => {
     if (!onResponse) return
@@ -64,7 +65,7 @@ export function ActivityFrame({ task, done = [], workspace, response, onResponse
               <div className="choice-grid" role="group" aria-label={task.choices.prompt}>
                 {task.choices.options.map((opt) => (
                   <label key={opt} className={'choice' + (choices.includes(opt) ? ' is-on' : '')}>
-                    <input type={task.choices?.multi === false ? 'radio' : 'checkbox'} checked={choices.includes(opt)} onChange={() => toggle(opt)} />
+                    <input type={task.choices?.multi === false ? 'radio' : 'checkbox'} disabled={inputLocked} checked={choices.includes(opt)} onChange={() => toggle(opt)} />
                     <span>{opt}</span>
                   </label>
                 ))}
@@ -74,7 +75,7 @@ export function ActivityFrame({ task, done = [], workspace, response, onResponse
           {task.notePrompt ? (
             <>
               <label className="label" htmlFor="note">{task.notePrompt}</label>
-              <textarea id="note" className="textarea" style={{ minHeight: 72 }} maxLength={600} value={response?.text ?? ''} placeholder="한두 문장이면 충분합니다." onChange={(e) => onResponse?.({ text: e.target.value })} />
+              <textarea id="note" className="textarea" disabled={inputLocked} style={{ minHeight: 72 }} maxLength={600} value={response?.text ?? ''} placeholder="한두 문장이면 충분합니다." onChange={(e) => onResponse?.({ text: e.target.value })} />
             </>
           ) : null}
         </div>
