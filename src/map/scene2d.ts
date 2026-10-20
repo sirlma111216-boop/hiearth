@@ -172,7 +172,8 @@ export function drawScene(ctx: CanvasRenderingContext2D, scene: MapScene, view: 
   }
 
   // 추론 선 — 다른 사람 선 먼저, 내 선과 강조 선은 위에
-  const order = ['others', 'first', 'revised', 'highlightA', 'highlightB'] as const
+  // 새로 완성하거나 선택한 선은 draft 스타일이다. 선택 상태도 마지막에 그려야 즉시 보인다.
+  const order = ['others', 'first', 'revised', 'highlightA', 'highlightB', 'draft'] as const
   for (const style of order) {
     for (const g of scene.guesses) {
       if (g.style !== style) continue
