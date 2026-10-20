@@ -142,11 +142,10 @@ function RoomInner({ code, data, initial }: { code: string; data: LessonData; in
     send({ type: 'saveResponses', responses }).then((ack) => { if (!ack.ok) toast.push(ack.error?.message ?? '응답 저장 실패', 'danger') }).catch(() => { /* 재연결 시 재전송 */ })
   }, [send, toast])
 
-  const onExplanation = useCallback(async (text: string, limitations: string) => {
-    const ack = await send({ type: 'saveExplanation', explanation: { text, limitations } })
-    if (!ack.ok) throw new Error(ack.error?.message ?? '저장하지 못했습니다. 다시 시도해 주세요.')
+  const onExplanation = useCallback((text: string, limitations: string) => {
     dispatch({ type: 'explanation/set', text, limitations })
-  }, [send])
+    send({ type: 'saveExplanation', explanation: { text, limitations } }).then((ack) => toast.push(ack.ok ? '서버에 저장되었습니다.' : (ack.error?.message ?? '저장 실패'), ack.ok ? 'success' : 'danger')).catch(() => toast.push('연결이 끊겨 전송 대기 중입니다.', 'info'))
+  }, [send, toast])
 
   const room: RoomContext = { meta: snap.room, sharedGuesses: snap.sharedGuesses, highlighted: [], connection: conn, queued, participantCount: snap.participantCount, myParticipantId: snap.me.id }
   const def = screenAt(screen.step, screen.sub)

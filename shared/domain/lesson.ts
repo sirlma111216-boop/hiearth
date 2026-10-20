@@ -1,53 +1,130 @@
-// 저장된 화면 참조는 유지한다. 표시 순서는 배열과 section만 사용한다.
+// 수업 흐름 — 단계(step)와 화면(sub)의 단일 출처. 번호를 다른 곳에 적지 않는다.
+// 각 화면은 '활동 상태(stage)'에 연결되어 교실에서는 교사가 연 화면까지만 학생이 갈 수 있다.
 import type { Stage } from './types'
+import { stageIndex } from './activity'
+
+export type ScreenKind = 'narrative' | 'content' | 'activity' | 'reflect' | 'write' | 'summary'
+
+export interface LessonScreen {
+  /** 화면 고유 id — 내용·응답 저장에 쓴다 (번호가 바뀌어도 유지) */
+  id: string
+  step: number
+  sub: number
+  kind: ScreenKind
+  title: string
+  /** 이 화면이 열리려면 교실의 활동 상태가 이 단계 이상이어야 한다 */
+  stage: Stage
+  /** 설명 위주라 시간이 없을 때 건너뛸 수 있는 화면 */
+  skippable?: boolean
+}
+
+export interface LessonStep {
+  n: number
+  short: string
+  long: string
+}
+
+export const LESSON_STEPS: LessonStep[] = [
+  { n: 1, short: '시작', long: '흔들리는 지구' },
+  { n: 2, short: '지진 자료', long: '점 하나가 지진 하나' },
+  { n: 3, short: '관찰', long: '지진은 어디에 모여 있을까' },
+  { n: 4, short: '추론', long: '경계를 그려 보자' },
+  { n: 5, short: '돌아보기', long: '우리가 그린 선' },
+  { n: 6, short: '화산·수정', long: '새 증거로 생각 고치기' },
+  { n: 7, short: '판의 경계', long: '연구 모형과 비교' },
+  { n: 8, short: '설명·결론', long: '근거 있는 설명과 정리' },
+]
+
+const S = (id: string, step: number, sub: number, kind: ScreenKind, title: string, stage: Stage, skippable = false): LessonScreen => ({ id, step, sub, kind, title, stage, skippable })
+
+export const LESSON_SCREENS: LessonScreen[] = [
+  S('intro', 1, 1, 'narrative', '흔들리는 지구', 'observe'),
+  S('intro-questions', 1, 2, 'content', '오늘의 탐구 질문', 'observe'),
+
+  S('quake-what', 2, 1, 'content', '지진은 무엇일까', 'observe', true),
+  S('quake-dot', 2, 2, 'content', '점 하나는 무엇을 뜻할까', 'observe', true),
+  S('quake-data', 2, 3, 'content', '우리가 쓰는 자료', 'observe', true),
+
+  S('observe-world', 3, 1, 'activity', '전 지구를 한눈에', 'observe'),
+  S('observe-time', 3, 2, 'activity', '시간을 돌려 보기', 'observe'),
+  S('observe-close', 3, 3, 'activity', '가까이 들여다보기', 'observe'),
+
+  S('guess-howto', 4, 1, 'content', '선을 긋는 방법', 'firstGuess', true),
+  S('guess-draw', 4, 2, 'activity', '최초 추론 그리기', 'firstGuess'),
+
+  S('reveal-lines', 5, 1, 'activity', '우리가 그린 선', 'firstReveal'),
+  S('reveal-reflect', 5, 2, 'reflect', '내 선 돌아보기', 'firstReveal'),
+
+  S('volcano-what', 6, 1, 'content', '화산은 어디에 있을까', 'volcanoReveal', true),
+  S('volcano-open', 6, 2, 'activity', '화산 증거 열기', 'volcanoReveal'),
+  S('volcano-compare', 6, 3, 'activity', '지진과 화산 겹쳐 보기', 'volcanoReveal'),
+  S('revise-why', 6, 4, 'content', '생각을 고치는 것은 실력이다', 'revise', true),
+  S('revise-draw', 6, 5, 'activity', '수정 추론 그리기', 'revise'),
+
+  S('plate-what', 7, 1, 'content', '판과 판의 경계', 'boundaryCompare', true),
+  S('plate-open', 7, 2, 'activity', '판 경계 모형 열기', 'boundaryCompare'),
+  S('plate-reflect', 7, 3, 'reflect', '내 선과 모형 비교하기', 'boundaryCompare'),
+
+  S('explain-write', 8, 1, 'write', '나의 설명', 'explain'),
+  S('explain-limits', 8, 2, 'write', '자료의 한계', 'explain'),
+  S('wrap-compare', 8, 3, 'summary', '처음 생각과 수정한 생각', 'wrapUp'),
+  S('wrap-card', 8, 4, 'summary', '탐구 카드', 'wrapUp'),
+]
+
+export const LAST_STEP = LESSON_STEPS[LESSON_STEPS.length - 1].n
+export const SUBS: Record<number, number> = {}
+for (const sc of LESSON_SCREENS) SUBS[sc.step] = Math.max(SUBS[sc.step] ?? 0, sc.sub)
 
 export interface ScreenRef { step: number; sub: number }
-export interface LessonScreen extends ScreenRef {
-  id: string
-  kind: 'activity' | 'write' | 'summary'
-  title: string
-  stage: Stage
-  section: number
-  nextLabel: string
+
+export const screenAt = (step: number, sub: number): LessonScreen | undefined => LESSON_SCREENS.find((s) => s.step === step && s.sub === sub)
+export const screenById = (id: string): LessonScreen | undefined => LESSON_SCREENS.find((s) => s.id === id)
+export const screenIndex = (ref: ScreenRef): number => LESSON_SCREENS.findIndex((s) => s.step === ref.step && s.sub === ref.sub)
+export const isValidScreen = (v: unknown): v is ScreenRef => !!v && typeof v === 'object' && typeof (v as ScreenRef).step === 'number' && typeof (v as ScreenRef).sub === 'number' && !!screenAt((v as ScreenRef).step, (v as ScreenRef).sub)
+
+/** id로 화면 위치를 찾는다 (번호를 코드에 적지 않기 위해) */
+export const refOf = (id: string): ScreenRef => { const s = screenById(id); if (!s) throw new Error('없는 화면 id: ' + id); return { step: s.step, sub: s.sub } }
+
+export function clampScreen(ref: ScreenRef): ScreenRef {
+  const step = Math.max(1, Math.min(LAST_STEP, Math.round(ref.step) || 1))
+  const sub = Math.max(1, Math.min(SUBS[step] ?? 1, Math.round(ref.sub) || 1))
+  return { step, sub }
 }
-export const LESSON_STEPS = [
-  { n: 1, short: '살펴보기' }, { n: 2, short: '그려보기' },
-  { n: 3, short: '증거로 다시 보기' }, { n: 4, short: '정리하기' },
-]
-export const LESSON_SCREENS: LessonScreen[] = [
-  { id: 'observe-world', step: 3, sub: 1, kind: 'activity', title: '지진은 어디에 모여 있을까요?', stage: 'observe', section: 1, nextLabel: '선 그리기 시작' },
-  { id: 'guess-draw', step: 4, sub: 2, kind: 'activity', title: '판의 경계가 있을 것 같은 곳에 선을 그려 보세요', stage: 'firstGuess', section: 2, nextLabel: '화산 자료 보기' },
-  { id: 'revise-draw', step: 6, sub: 5, kind: 'activity', title: '화산 자료를 보니, 내 선을 바꾸고 싶나요?', stage: 'revise', section: 3, nextLabel: '판 경계와 비교하기' },
-  { id: 'plate-open', step: 7, sub: 2, kind: 'activity', title: '연구자들의 판 경계와 내 선을 비교해 보세요', stage: 'boundaryCompare', section: 3, nextLabel: '내 설명 쓰기' },
-  { id: 'explain-write', step: 8, sub: 1, kind: 'write', title: '관찰한 자료로 내 생각을 설명해 보세요', stage: 'explain', section: 4, nextLabel: '결과 보기' },
-  { id: 'wrap-card', step: 8, sub: 4, kind: 'summary', title: '오늘의 탐구 결과', stage: 'wrapUp', section: 4, nextLabel: '' },
-]
-export const FIRST_SCREEN: ScreenRef = { step: 3, sub: 1 }
-export const screenAt = (step: number, sub: number) => LESSON_SCREENS.find(s => s.step === step && s.sub === sub)
-export const screenById = (id: string) => LESSON_SCREENS.find(s => s.id === id)
-export const screenIndex = (s: ScreenRef) => LESSON_SCREENS.findIndex(x => x.step === s.step && x.sub === s.sub)
-export const isValidScreen = (v: unknown): v is ScreenRef => !!v && typeof v === 'object' && !!screenAt((v as ScreenRef).step, (v as ScreenRef).sub)
-export function refOf(id: string): ScreenRef {
-  const s = screenById(id)
-  if (!s) throw new Error('없는 화면 id: ' + id)
+
+export function nextScreen(ref: ScreenRef): ScreenRef | null {
+  const i = screenIndex(ref)
+  if (i < 0 || i >= LESSON_SCREENS.length - 1) return null
+  const s = LESSON_SCREENS[i + 1]
   return { step: s.step, sub: s.sub }
 }
-/** 기존 화면 위치만 옮기며 제출과 응답은 삭제하지 않는다. */
-export function clampScreen(ref: ScreenRef): ScreenRef {
-  if (screenAt(ref.step, ref.sub)) return { step: ref.step, sub: ref.sub }
-  const id = ref.step <= 3 ? 'observe-world' : ref.step <= 5 ? 'guess-draw'
-    : ref.step === 6 ? 'revise-draw' : ref.step === 7 ? 'plate-open'
-      : ref.step === 8 && ref.sub < 3 ? 'explain-write' : 'wrap-card'
-  return refOf(id)
-}
-export function nextScreen(ref: ScreenRef): ScreenRef | null {
-  const s = LESSON_SCREENS[screenIndex(ref) + 1]
-  return s ? { step: s.step, sub: s.sub } : null
-}
+
 export function prevScreen(ref: ScreenRef): ScreenRef | null {
-  const s = LESSON_SCREENS[screenIndex(ref) - 1]
-  return s ? { step: s.step, sub: s.sub } : null
+  const i = screenIndex(ref)
+  if (i <= 0) return null
+  const s = LESSON_SCREENS[i - 1]
+  return { step: s.step, sub: s.sub }
 }
+
+/** 다음 단계의 첫 화면 (건너뛰기) */
+export function nextStepStart(ref: ScreenRef): ScreenRef | null {
+  if (ref.step >= LAST_STEP) return null
+  return { step: ref.step + 1, sub: 1 }
+}
+
 export const screenStage = (ref: ScreenRef): Stage => screenAt(ref.step, ref.sub)?.stage ?? 'observe'
-export const screenLE = (a: ScreenRef, b: ScreenRef) => isValidScreen(a) && isValidScreen(b) && screenIndex(a) <= screenIndex(b)
-export const screenLabel = (ref: ScreenRef) => screenAt(ref.step, ref.sub)?.title ?? '지진 살펴보기'
+
+/** a가 b보다 앞이거나 같은 화면인가 */
+export const screenLE = (a: ScreenRef, b: ScreenRef) => screenIndex(a) <= screenIndex(b)
+
+/** 교실의 활동 상태로 허용되는 마지막 화면 */
+export function maxScreenForStage(stage: Stage): ScreenRef {
+  let last: ScreenRef = { step: 1, sub: 1 }
+  for (const s of LESSON_SCREENS) if (stageIndex(s.stage) <= stageIndex(stage)) last = { step: s.step, sub: s.sub }
+  return last
+}
+
+export const FIRST_SCREEN: ScreenRef = { step: 1, sub: 1 }
+export const screenLabel = (ref: ScreenRef) => {
+  const st = LESSON_STEPS.find((s) => s.n === ref.step)
+  return `${ref.step}/${LAST_STEP} · ${st?.long ?? ''} (${ref.sub}/${SUBS[ref.step] ?? 1})`
+}

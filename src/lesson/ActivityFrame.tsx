@@ -1,29 +1,86 @@
+// 활동 화면 — 과제 안내 + 끼워 넣은 작업 공간 + 관찰 메모/선택 응답
 import type { ReactNode } from 'react'
-import type { LayerId } from '@shared/domain/types'
-import { isoDateUtc } from '@shared/geo/time'
+import type { LayerId, ScreenResponse } from '@shared/domain/types'
 import { Workspace, type WorkspaceProps } from '../workspace/Workspace'
+
 export interface ActivityTask {
   question: string
-  hint: string
+  hint?: string
+  /** 체크리스트처럼 보여 줄 할 일 (완료 여부는 done 배열로) */
+  steps?: string[]
   panels?: WorkspaceProps['panels']
   initialLayers?: Partial<Record<LayerId, boolean>>
+  reveal?: 'volcano' | 'boundary' | null
+  /** 관찰 메모 질문 (있으면 입력칸 표시) */
+  notePrompt?: string
+  /** 선택형 응답 */
+  choices?: { prompt: string; options: string[]; multi?: boolean }
+  /** 교사에게만 보이는 진행 팁 */
   teacherTip?: string
 }
+
 interface Props {
   task: ActivityTask
+  done?: boolean[]
   workspace: Omit<WorkspaceProps, 'embedded' | 'panels' | 'reveal' | 'initialLayers'>
+  response?: ScreenResponse
+  onResponse?: (patch: { text?: string; choices?: string[] }) => void
   role: 'solo' | 'student' | 'teacher'
+  children?: ReactNode
+  /** 과제 머리 아래 안내(예: 선행 조건 미충족) */
   notice?: ReactNode
 }
-export function ActivityFrame({ task, workspace, role, notice }: Props) {
-  const eq = workspace.data.manifest.datasets.earthquakesLesson
-  const stage = workspace.stageOverride
-  return <div>
-    <p className="activity-hint">{task.hint}</p>
-    <p className="dataset-caption">● 지진 · {isoDateUtc(Date.parse(eq.coverageStart!))}–{isoDateUtc(Date.parse(eq.coverageEnd!) - 1)} · 규모 5 이상{stage === 'revise' || stage === 'boundaryCompare' ? '　△ 화산 · 현재 분화 중인 목록이 아닙니다' : ''}{stage === 'boundaryCompare' ? '　━ 판 경계 연구 모형' : ''}</p>
-    {notice}
-    <Workspace {...workspace} embedded panels={{ banner: false, ...(task.panels ?? {}) }} reveal={null} initialLayers={task.initialLayers} />
-    {role === 'teacher' && task.teacherTip ? <p className="teacher-hint">{task.teacherTip}</p> : null}
-    <details className="simple-details lesson-concepts"><summary>지도를 읽는 방법과 자료 출처</summary><p>점은 지진이 발생한 진앙, 점 크기는 규모를 나타냅니다. 피해 범위나 위험도가 아닙니다. 지진 기록은 USGS, 화산 목록은 Smithsonian GVP, 판 경계는 USGS 연구 모형입니다. 지진이 적게 표시된 곳이 안전하다는 뜻은 아닙니다.</p><p>판은 지구 겉부분을 이루는 조각이며, 판과 판이 만나는 곳을 판의 경계라고 합니다. 화산 목록에는 바다 밑 화산이 적게 포함될 수 있습니다.</p><a href="/sources" target="_blank" rel="noreferrer">자료 출처와 범위 자세히 보기</a></details>
-  </div>
+
+export function ActivityFrame({ task, done = [], workspace, response, onResponse, role, children, notice }: Props) {
+  const choices = response?.choices ?? []
+  const toggle = (opt: string) => {
+    if (!onResponse) return
+    const multi = task.choices?.multi !== false
+    const next = choices.includes(opt) ? choices.filter((c) => c !== opt) : multi ? [...choices, opt] : [opt]
+    onResponse({ choices: next })
+  }
+  return (
+    <div>
+      <div className="task">
+        <div>
+          <h2>{task.question}</h2>
+          {task.hint ? <p>{task.hint}</p> : null}
+        </div>
+        {task.steps?.length ? (
+          <div className="task-steps" aria-label="할 일">
+            {task.steps.map((s, i) => <span key={s} className={done[i] ? 'ok' : ''}>{done[i] ? '✓' : '○'} {s}</span>)}
+          </div>
+        ) : null}
+      </div>
+      {notice}
+      <div className="activity-stage">
+        <Workspace {...workspace} embedded panels={{ banner: false, ...(task.panels ?? {}) }} reveal={task.reveal ?? null} initialLayers={task.initialLayers} defaultOpen={{ evidence: false, tools: task.panels?.tools !== false }} />
+      </div>
+      {role !== 'teacher' && (task.notePrompt || task.choices) ? (
+        <div className="response">
+          {task.choices ? (
+            <>
+              <div className="label">{task.choices.prompt}</div>
+              <div className="choice-grid" role="group" aria-label={task.choices.prompt}>
+                {task.choices.options.map((opt) => (
+                  <label key={opt} className={'choice' + (choices.includes(opt) ? ' is-on' : '')}>
+                    <input type={task.choices?.multi === false ? 'radio' : 'checkbox'} checked={choices.includes(opt)} onChange={() => toggle(opt)} />
+                    <span>{opt}</span>
+                  </label>
+                ))}
+              </div>
+            </>
+          ) : null}
+          {task.notePrompt ? (
+            <>
+              <label className="label" htmlFor="note">{task.notePrompt}</label>
+              <textarea id="note" className="textarea" style={{ minHeight: 72 }} maxLength={600} value={response?.text ?? ''} placeholder="한두 문장이면 충분합니다." onChange={(e) => onResponse?.({ text: e.target.value })} />
+            </>
+          ) : null}
+        </div>
+      ) : null}
+      {role === 'teacher' && task.teacherTip ? <div className="teacher-hint"><strong>진행 팁</strong> {task.teacherTip}</div> : null}
+      {children}
+    </div>
+  )
 }

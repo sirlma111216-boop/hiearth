@@ -1,5 +1,5 @@
 // 탐구 작업 공간 — 혼자 탐사·학생 탐사실·교사 발표가 같은 엔진과 화면을 공유한다.
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Evidence, GuessKind, LayerId, MapMode, RoomMeta, SharedGuess, Stage, ViewState } from '@shared/domain/types'
 import { MAX_EVIDENCE } from '@shared/domain/types'
 import { STAGE_INFO, reached } from '@shared/domain/activity'
@@ -78,9 +78,6 @@ export function Workspace(p: WorkspaceProps) {
   const { data, state, dispatch, role } = p
   const stage = p.stageOverride ?? state.record.stage
   const info = STAGE_INFO[stage]
-  useLayoutEffect(() => {
-    if (info.drawing !== 'none' && role !== 'teacher') dispatch({ type: 'draft/activate', kind: info.drawing })
-  }, [info.drawing, role, dispatch])
   const roomMeta = p.room?.meta
   const maxStage: Stage = role === 'student' && roomMeta ? roomMeta.stage : 'wrapUp'
 
@@ -155,18 +152,13 @@ export function Workspace(p: WorkspaceProps) {
     if (wantReveal === 'volcano' && stage === 'volcanoReveal' && volcanoesAllowed && !seenReveal.current.has('volcano')) { seenReveal.current.add('volcano'); setReveal('volcano'); void audio.play('evidence-reveal') }
     if (wantReveal === 'boundary' && stage === 'boundaryCompare' && boundariesAllowed && !seenReveal.current.has('boundary')) { seenReveal.current.add('boundary'); setReveal('boundary'); void audio.play('boundary-reveal') }
     if (stage === 'wrapUp') void audio.play('report-ready')
-    setInteractionMode('move')
+    if (info.drawing === 'none') setInteractionMode('move')
+    else setInteractionMode('draw')
+    // 수정 단계에 들어가면 최초 추론을 초안으로 복사 (초안이 비어 있을 때만)
+    if (info.drawing === 'revised' && state.record.firstGuess && state.draft.lines.length === 0) dispatch({ type: 'draft/loadFrom', guess: state.record.firstGuess.guess })
     if (info.drawing === 'first' && state.record.firstGuess) setInteractionMode('move')
 
   }, [stage, volcanoesAllowed, boundariesAllowed])
-  useEffect(() => {
-    if (p.initialLayers) setLayers(l => ({ ...l, ...p.initialLayers }))
-    setLayers(l => ({ ...l, myRevised: stage === 'boundaryCompare' }))
-    setPick(null)
-  }, [stage, p.initialLayers])
-  useEffect(() => {
-    if (roomMeta?.revealed.firstGuesses) setLayers(l => ({ ...l, others: true }))
-  }, [roomMeta?.revealed.firstGuesses])
 
   // 교사 따라가기
   const lastFollow = useRef(0)
@@ -199,9 +191,9 @@ export function Workspace(p: WorkspaceProps) {
       }
     }
     if (role !== 'teacher') {
-      if (state.record.firstGuess) out.push({ id: 'my-first', style: 'first', lines: state.record.firstGuess.guess.lines.map((l) => l.points) })
+      if (state.record.firstGuess && (draftKind !== 'first')) out.push({ id: 'my-first', style: 'first', lines: state.record.firstGuess.guess.lines.map((l) => l.points) })
       if (state.record.revisedGuess && draftKind !== 'revised') out.push({ id: 'my-revised', style: 'revised', lines: state.record.revisedGuess.guess.lines.map((l) => l.points) })
-      if (draftKind !== 'none' && !(draftKind === 'first' && state.record.firstGuess)) {
+      if (draftKind !== 'none') {
         const style = draftKind === 'first' ? 'first' : 'revised'
         for (const l of state.draft.lines) out.push({ id: 'draft:' + l.id, style: state.draft.selectedLineId === l.id ? 'draft' : style, lines: [l.points] })
       }
@@ -227,8 +219,7 @@ export function Workspace(p: WorkspaceProps) {
 
   const interaction = useMemo<Interaction>(() => ({ mode: role === 'teacher' || info.drawing === 'none' ? 'move' : interactionMode, drawMode: state.draft.mode }), [role, info.drawing, interactionMode, state.draft.mode])
 
-  const controlsLocked = role === 'student' && (!!roomMeta?.inputLocked || roomMeta?.status !== 'open' || roomMeta.stage !== stage)
-  const inputLocked = (stage === 'firstGuess' && !!state.record.firstGuess) || state.submit.status === 'pending' || state.submit.status === 'queued' || (role === 'student' && (roomMeta?.inputLocked || roomMeta?.status !== 'open' || roomMeta.stage !== stage))
+  const inputLocked = role === 'student' && (roomMeta?.inputLocked || roomMeta?.status !== 'open')
 
   const events = useMemo<MapEvents>(() => ({
     onViewChange: (v) => { currentView.current = v },
@@ -296,40 +287,6 @@ export function Workspace(p: WorkspaceProps) {
     : `${data.manifest.datasets.plateBoundaries.provider} · ${data.manifest.datasets.plateBoundaries.recordCount}개 선분 · 수집 ${isoDateUtc(Date.parse(data.manifest.datasets.plateBoundaries.retrievedAt))}`
 
   const nextDisabledReason = role === 'solo' && stage === 'firstGuess' && !state.record.firstGuess ? '최초 추론을 제출하면 다음으로 넘어갈 수 있습니다' : undefined
-
-  if (p.embedded) return (
-    <div className={'simple-workspace' + (presentation ? ' simple-presentation' : '')}>
-      <div className="simple-map-area">
-        <MapView ref={mapRef} mode={mapMode} scene={scene} interaction={interaction} events={events} initialView={initialView} requestedView={requestedView}
-          onModeFallback={reason => { setMapMode('2d'); toast.push(reason, 'info') }} />
-        {pickedItem ? <InfoPanel item={pickedItem} onClose={() => setPick(null)} /> : null}
-        {connectionLabel ? <span className="simple-connection" role="status">{connectionLabel}{p.room?.queued ? ' · 전송 대기 중' : ''}</span> : null}
-      </div>
-      {role !== 'teacher' && show.tools ? <InferencePanel state={state} stage={stage} mode={interactionMode} onMode={setInteractionMode}
-        onDrawMode={m => dispatch({ type: 'draft/setMode', mode: m })} onUndo={() => dispatch({ type: 'draft/undoPoint' })}
-        onRedo={() => dispatch({ type: 'draft/redo' })} onDeleteSelected={() => dispatch({ type: 'draft/deleteSelected' })} onClear={() => dispatch({ type: 'draft/clear' })}
-        onSelectLine={id => dispatch({ type: 'draft/select', lineId: id })} onFinishPending={() => dispatch({ type: 'draft/finishPending' })}
-        onCopyFirst={() => { if (state.record.firstGuess) dispatch({ type: 'draft/loadFrom', guess: state.record.firstGuess.guess }) }}
-        onSubmit={p.onSubmit} onExplanation={p.onExplanation} inputLocked={controlsLocked} lockedReason={roomMeta?.stage !== stage ? '이전 활동입니다. 현재 수업으로 돌아가면 계속할 수 있어요.' : undefined} role={role} /> : null}
-      {role === 'teacher' && p.onShareView ? <div className="row simple-share"><Button size="sm" variant="secondary" onClick={() => p.onShareView?.(mapRef.current?.getView() ?? currentView.current, mapMode, true)}>학생 지도도 이곳으로</Button>{presentation ? <Button size="sm" onClick={() => p.onPresentation?.(false)}>발표 닫기</Button> : null}</div> : null}
-      {show.time ? <details className="simple-details simple-time"><summary>시간순으로 보기</summary>
-        <TimeControls times={times} range={timeRangeAll} state={playback.state} visibleCount={visibleCount} totalCount={earthquakes.length}
-          onPlay={playback.play} onPause={playback.pause} onRewind={playback.rewind} onSeek={playback.seek} onMode={playback.setMode} onSpeed={playback.setSpeed} onWindowDays={playback.setWindowDays} compact />
-      </details> : null}
-      <details className="simple-details map-settings"><summary>보기·자료 설정{state.record.evidence.length ? ` · 담은 장면 ${state.record.evidence.length}개` : ''}</summary>
-        <div className="row">
-          <Button size="sm" onClick={() => switchMode(mapMode === '3d' ? '2d' : '3d')}>{mapMode === '3d' ? '지도로 보기' : '지구본으로 보기'}</Button>
-          <label>지역 이동<select className="select" value="" onChange={e => { const pr = REGION_PRESETS.find(x => x.id === e.target.value); if (pr) requestView({ ...pr.view, zoom: pr.view.zoom * portraitFactor }) }}><option value="">지역 선택</option>{REGION_PRESETS.map(pr => <option key={pr.id} value={pr.id}>{pr.label}</option>)}</select></label>
-        </div>
-        <EvidenceDrawer lesson={data} recent={recent} choice={choice} onChoice={setChoice} onRefreshRecent={() => void refreshRecent(choice.feed)}
-          layers={layers} layerAvailability={layerAvailability} onLayer={(id, on) => setLayers(l => ({ ...l, [id]: on }))}
-          minMagnitude={minMag} onMinMagnitude={setMinMag} evidence={state.record.evidence}
-          canCapture={state.record.evidence.length < MAX_EVIDENCE && !controlsLocked} captureDisabledReason={controlsLocked ? '입력이 잠겨 있습니다.' : undefined}
-          onCapture={() => void captureEvidence()} onEvidenceNote={updateEvidence} onEvidenceRemove={removeEvidence} visibleCount={visibleCount}
-          overlapEmphasis={overlapEmphasis} onOverlapEmphasis={p.room ? setOverlapEmphasis : undefined} readOnly={role === 'teacher'} />
-      </details>
-    </div>
-  )
 
   return (
     <div className={'workspace' + (presentation ? ' presentation' : '') + (p.embedded ? ' embedded' : '')}>

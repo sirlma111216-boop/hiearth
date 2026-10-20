@@ -60,15 +60,14 @@ export default function Join() {
       <form className="card stack" onSubmit={submit} style={{ gap: 16 }} aria-labelledby="join-title">
         <span className="eyebrow">Join Expedition</span>
         <h1 id="join-title" style={{ fontSize: 28 }}>탐사실 입장</h1>
-        <p className="muted">{params.get('code') ? '수업에서 사용할 별명을 적어 주세요. 실명이나 학번은 필요 없습니다.' : '선생님이 보여 준 코드와 별명을 입력해 주세요. 실명이나 학번은 필요 없습니다.'}</p>
-        <div className="field" hidden={!!params.get('code') && !!info && !error}>
+        <p className="muted">선생님이 보여 준 6자 코드와 별명만 입력하면 됩니다. 실명·학번·이메일은 필요 없습니다.</p>
+        <div className="field">
           <label htmlFor="code">입장 코드</label>
           <input id="code" className="input num" style={{ fontSize: 24, letterSpacing: '0.2em', textTransform: 'uppercase' }} value={code} maxLength={6} autoComplete="off" inputMode="text" placeholder="ABC234" onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))} aria-describedby="code-status" />
           <span id="code-status" className="hint" aria-live="polite">
             {checking ? '확인 중…' : info ? `${info.title} · 참가 ${info.participantCount}/${info.maxParticipants}명${info.joinLocked ? ' · 입장 잠김' : ''}${info.status !== 'open' ? ' · 종료됨' : ''}` : code.length === 6 && error ? error : '코드 6자를 입력하세요'}
           </span>
         </div>
-        {params.get('code') && info ? <p><strong>{info.title}</strong> · 입장 코드 {code}</p> : null}
         <div className="field">
           <label htmlFor="nick">별명</label>
           <input id="nick" className="input" value={nickname} maxLength={MAX_NICKNAME} autoComplete="off" placeholder="예: 파란고래" onChange={(e) => setNickname(e.target.value)} />

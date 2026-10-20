@@ -67,14 +67,13 @@ export function ReportView({ data, record, nickname, title, roomCode, onImport, 
       <div className="row no-print" style={{ gap: 8 }}>
         <Button variant="primary" icon="print" onClick={() => window.print()}>인쇄 / PDF 저장</Button>
         <Button variant="secondary" icon="download" onClick={() => void savePng()} disabledReason={!maps ? '지도를 그리는 중입니다' : undefined}>PNG 탐구 카드</Button>
-        <details className="simple-details"><summary>원본 기록 가져오기·내보내기</summary>        <Button variant="secondary" icon="download" onClick={() => exportRecordJson(record, { nickname, roomCode, title })}>JSON 내보내기</Button>
+        <Button variant="secondary" icon="download" onClick={() => exportRecordJson(record, { nickname, roomCode, title })}>JSON 내보내기</Button>
         {onImport ? (
           <label className="btn btn-secondary">
             <input type="file" accept="application/json" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) onImport(f); e.currentTarget.value = '' }} />
             JSON 가져오기
           </label>
         ) : null}
-        </details>
         <Link to={backHref} className="btn btn-quiet">돌아가기</Link>
       </div>
 
@@ -121,8 +120,8 @@ export function ReportView({ data, record, nickname, title, roomCode, onImport, 
           <h2><span className="no">03+</span> 관찰 기록과 자기 분석</h2>
           <table className="data">
             <tbody>
-              {Object.entries(record.responses).filter(([, r]) => r.text?.trim() || r.choices?.length).map(([id, r]) => { const s = LESSON_SCREENS.find(s => s.id === id); return (
-                <tr key={id}><th style={{ width: '32%' }}>{s?.title ?? '이전 수업 관찰 기록'}</th><td>{r.choices?.length ? <div className="small muted">{r.choices.join(' · ')}</div> : null}{r.text?.trim() ? <div style={{ whiteSpace: 'pre-wrap' }}>{r.text}</div> : null}</td></tr>
+              {LESSON_SCREENS.filter((s) => record.responses?.[s.id] && ((record.responses[s.id].text ?? '').trim() || record.responses[s.id].choices?.length)).map((s) => { const r = record.responses![s.id]; return (
+                <tr key={s.id}><th style={{ width: '32%' }}>{s.step}. {s.title}</th><td>{r.choices?.length ? <div className="small muted">{r.choices.join(' · ')}</div> : null}{r.text?.trim() ? <div style={{ whiteSpace: 'pre-wrap' }}>{r.text}</div> : null}</td></tr>
               ) })}
             </tbody>
           </table>

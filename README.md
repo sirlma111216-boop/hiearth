@@ -12,10 +12,11 @@
 
 ```bash
 npm install
+cp .dev.vars.example .dev.vars   # TEACHER_SECRET 값을 채운다 (교사 탐사실 생성용)
 npm run dev                       # http://localhost:5173  (Worker + Durable Object 로컬 실행)
 ```
 
-수업 생성에는 공용 암호나 환경변수가 필요하지 않습니다. 만든 브라우저에 교사 전용 HttpOnly 쿠키를 발급합니다. 다른 기기에서 이어갈 때는 생성 시 한 번 표시되는 복구 코드를 사용합니다. 학생 입장 코드는 교사 권한이 아닙니다.
+`.dev.vars`가 없거나 `TEACHER_SECRET`이 비어 있으면 혼자 탐사는 되지만 탐사실 생성은 "서버에 교사 비밀 값이 설정되어 있지 않습니다"로 거부됩니다.
 
 ## 빌드·검사·테스트
 
@@ -28,7 +29,7 @@ npm run test:e2e       # Playwright E2E (교사 1 + 학생 2, 분리된 브라�
 npm run build          # vite build → dist/client (정적 자산) + dist/earth_expedition (Worker)
 ```
 
-E2E는 `npm run dev` 서버를 자동으로 띄웁니다. 별도 비밀 값 설정 없이 교사·학생 흐름을 검사합니다.
+E2E는 `npm run dev` 서버를 자동으로 띄우며, `.dev.vars`의 `TEACHER_SECRET`이 `local-dev-teacher-secret-2026`이 아니면 `TEACHER_SECRET=... npm run test:e2e`로 값을 넘깁니다.
 
 ## 데이터 스냅샷 갱신
 
@@ -54,13 +55,13 @@ npm run data:fetch     # USGS/GVP/Natural Earth → public/data/*.json + manifes
 
 대안으로 Cloudflare 대시보드 → Workers & Pages → `earth-expedition` → Settings → Build → Connect to Git 에서 저장소를 연결해도 됩니다(Build command `npm run build`, Deploy command `npx wrangler deploy`). 둘 다 켜면 push마다 두 번 배포되므로 한 가지만 쓰세요.
 
-### 수업 생성과 교사 권한
+### 교사 비밀 값 (한 번만)
 
-누구나 수업을 만들 수 있지만, 수업을 제어할 권한은 생성자 세션과 복구 코드로만 부여합니다. Origin 확인, IP별 생성 요청 제한(최대 5회 버스트, 분당 5회 보충), 설정 검증과 최대 24시간 만료를 유지합니다. IP 제한은 Worker 인스턴스별 최선 노력 제한이며 분산 공격 전체를 막는 전역 할당량은 아닙니다. 기존 `TEACHER_SECRET` 설정은 더 이상 사용하지 않습니다.
+```bash
+npx wrangler secret put TEACHER_SECRET
+```
 
-### 수업 흐름
-
-화면은 지진 관찰 → 첫 선 제출 → 화산을 보고 수정 제출 → 판 경계 비교 → 설명·자료 한계 함께 작성 → 결과의 6개입니다. 학생은 교사가 연 활동까지만 볼 수 있습니다. 선 편집, 시간 재생 세부 설정, 자료 선택은 펼쳐서 사용합니다. 기존 기록과 이전 수업의 응답은 보존합니다.
+입력한 값이 교사 화면의 "교사 비밀 값"입니다. 설정 전에는 혼자 탐사만 되고 탐사실 생성은 거부됩니다.
 
 ### 수동 배포
 

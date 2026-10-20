@@ -26,7 +26,7 @@
 | 발표 화면: 지구본 65%+, 저채도 + 강조 두 명, 비밀 미노출, 전체화면/Esc | `.presentation` CSS, `teacher:highlight` | 완료 |
 | Worker + SQLite DO + Hibernation, 버전 메시지 규약, 스냅샷·재연결·중복·순서 | `worker/room.ts`, `shared/protocol/messages.ts` | 완료 (DO 테스트) |
 | SQLite 영속, setInterval 미사용, TTL 24h 알람, 만료·종료·삭제 정리, 로컬 사본 안내·지우기 | `room.ts` alarm, Settings | 완료 |
-| 수업 생성자 고엔트로피 세션, HttpOnly 쿠키, Origin 검증, 복구 토큰 해시 | `worker/index.ts`, `auth.ts` | 완료 |
+| 교사 비밀(secret) 서버 검증, 고엔트로피 세션, HttpOnly 쿠키, Origin 검증, 복구 토큰 해시 | `worker/index.ts`, `auth.ts` | 완료 |
 | 코드 충돌 재시도, 제한, 검증, 크기 제한, 정원, 만료, 타 방 차단, CSV 주입 방지 | `index.ts`, `room.ts`, schemas | 완료 (DO 테스트) |
 | USGS/GVP/판 경계 실제 응답 확인, 페이지네이션, 분할, 중복 제거, 대조, manifest | `scripts/fetch-data.mjs`, `public/data/manifest.json` | 완료 |
 | 프록시 허용 목록, 타임아웃·백오프·캐시·오류 응답, 실패 시 저장 자료 안내 | `worker/proxy.ts` | 완료 |
@@ -41,4 +41,4 @@
 | 문서 9종 | `README.md`, `CLAUDE.md`, `docs/*` | 완료 |
 | 영문 브랜드 디스플레이 서체 | 추가하지 않음(선택 사항) | 미적용(의도) |
 | 40명 부하 검증 | 로컬 시뮬레이션 | VERIFICATION.md 참조 |
-| 실제 Cloudflare 배포 | `wrangler deploy` → earth-expedition.sirlma.workers.dev, GitHub push 워크플로 | 완료 (API 토큰 secret은 사용자 설정) |
+| 실제 Cloudflare 배포 | `wrangler deploy` → earth-expedition.sirlma.workers.dev, GitHub push 워크플로 | 완료 (API 토큰 secret·TEACHER_SECRET은 사용자 설정) |

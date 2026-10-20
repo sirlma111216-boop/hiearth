@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import QRCode from 'qrcode'
 import type { ViewState, MapMode, InquiryRecord, ParticipantPublic } from '@shared/domain/types'
 import { STAGE_INFO, checklist } from '@shared/domain/activity'
-import { LESSON_SCREENS, screenAt, screenIndex, type ScreenRef } from '@shared/domain/lesson'
+import { LESSON_STEPS, SUBS, screenAt, type ScreenRef } from '@shared/domain/lesson'
 import { LessonShell } from '../lesson/LessonShell'
 import { formatKst } from '@shared/geo/time'
 import type { TeacherSnapshot, NoticeMessage } from '@shared/protocol/messages'
@@ -18,6 +18,7 @@ import { api, ApiError } from '../realtime/api'
 import { TopBar } from '../ui/TopBar'
 import { Button } from '../ui/Button'
 import { Dialog } from '../ui/Dialog'
+import { Icon } from '../ui/Icon'
 import { useToast } from '../ui/Toast'
 import type { RoomContext } from '../workspace/Workspace'
 import { audio } from '../audio/AudioManager'
@@ -57,7 +58,6 @@ function TeachRoomInner({ code, data, initial }: { code: string; data: LessonDat
   const [qr, setQr] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [confirmEnd, setConfirmEnd] = useState(false)
-  const [pendingScreen, setPendingScreen] = useState<ScreenRef | null>(null)
   const [groupFilter, setGroupFilter] = useState<string>('')
   const [records, setRecords] = useState<{ participant: ParticipantPublic; record: InquiryRecord }[] | null>(null)
   const clientRef = useRef<RoomClient | null>(null)
@@ -99,19 +99,12 @@ function TeachRoomInner({ code, data, initial }: { code: string; data: LessonDat
     }
   }, [toast])
 
-  const moveScreen = (ref: ScreenRef) => { void send({ type: 'teacher:setScreen', screen: ref }); void audio.play('ui-tap') }
-  const setScreen = (ref: ScreenRef) => {
-    if (room.status !== 'open') return
-    if (screenIndex(ref) > screenIndex(room.screen) && missingCount > 0) { setPendingScreen(ref); return }
-    moveScreen(ref)
-  }
+  const setScreen = (ref: ScreenRef) => { void send({ type: 'teacher:setScreen', screen: ref }); void audio.play('ui-tap') }
   const room = snap.room
   const visibleParticipants = useMemo(() => snap.participants.filter((p) => !groupFilter || p.group === groupFilter), [snap.participants, groupFilter])
   const roomCtx: RoomContext = { meta: room, sharedGuesses: groupFilter ? snap.sharedGuesses.filter((g) => g.group === groupFilter) : snap.sharedGuesses, highlighted: snap.highlighted, connection: conn, queued: 0, participantCount: snap.participants.length, myParticipantId: null }
   const counts = { first: snap.participants.filter((p) => p.hasFirst).length, revised: snap.participants.filter((p) => p.hasRevised).length, explanation: snap.participants.filter((p) => p.hasExplanation).length, online: snap.participants.filter((p) => p.connected).length }
 
-  const submittedCount = room.stage === 'firstGuess' ? counts.first : room.stage === 'revise' ? counts.revised : room.stage === 'explain' ? counts.explanation : null
-  const missingCount = submittedCount === null ? 0 : snap.participants.length - submittedCount
   const loadRecords = async () => { try { const r = await api.teacherRecords(code); setRecords(r.records) } catch (e) { toast.push(e instanceof ApiError ? e.message : '결과를 받지 못했습니다.', 'danger') } }
   useEffect(() => { if (tab === 'results') void loadRecords() }, [tab, snap.roomRevision])
 
@@ -126,35 +119,80 @@ function TeachRoomInner({ code, data, initial }: { code: string; data: LessonDat
   }
 
   const side = (
-    <aside className="teach-side simple-teach-side">
-      <div className="row between"><strong>{room.title}</strong><span className="status-pill">{conn === 'open' ? '연결됨' : '연결 확인 중'}</span></div>
-      <div className="row" role="tablist" aria-label="교사 화면 탭">
-        {(['lobby', 'run', 'results'] as Tab[]).map(t => <Button key={t} size="sm" variant="quiet" active={tab === t} onClick={() => setTab(t)} role="tab" aria-selected={tab === t}>{t === 'lobby' ? '학생 입장' : t === 'run' ? '수업 진행' : '결과'}</Button>)}
+    <aside className="teach-side">
+      <div className="row between">
+        <div><div className="eyebrow">Room {code}</div><strong>{room.title}</strong></div>
+        <span className="status-pill"><span className={'dot ' + (conn === 'open' ? 'dot-on' : conn === 'reconnecting' ? 'dot-warn' : 'dot-off')} />{conn === 'open' ? '연결됨' : conn === 'reconnecting' ? '재연결 중' : '연결 끊김'}</span>
       </div>
-      <p className="class-progress" role="status">{submittedCount === null ? `학생 ${snap.participants.length}명 · 접속 ${counts.online}명` : `${room.stage === 'firstGuess' ? '첫 생각' : room.stage === 'revise' ? '나중 선' : '설명'} 제출 ${submittedCount} / ${snap.participants.length}명`}</p>
-      {tab === 'run' && room.stage === 'firstGuess' ? <Button variant="secondary" onClick={() => send({ type: 'teacher:reveal', what: 'firstGuesses', value: !room.revealed.firstGuesses })}>{room.revealed.firstGuesses ? '우리 반 선 감추기' : '우리 반 선 함께 보기'}</Button> : null}
-      <details className="simple-details"><summary>학생별 제출 확인</summary>
-        {room.groups.length ? <select className="select" value={groupFilter} onChange={e => setGroupFilter(e.target.value)} aria-label="모둠 필터"><option value="">모든 모둠</option>{room.groups.map(g => <option key={g}>{g}</option>)}</select> : null}
-        <div className="participant-list">{visibleParticipants.map(p => <div key={p.id} className="participant">
-          <button className="btn btn-quiet btn-sm" onClick={() => toggleHighlight(p.id)} aria-pressed={snap.highlighted.includes(p.id)} title="지도에서 선 강조">{p.nickname}</button>
-          <span className="tiny">{p.connected ? '접속 중' : '연결 끊김'} · {room.stage === 'revise' ? p.hasRevised ? '나중 선 제출' : '미제출' : room.stage === 'explain' ? p.hasExplanation ? '설명 제출' : '미제출' : p.hasFirst ? '첫 생각 제출' : '미제출'}</span>
-        </div>)}</div>
-      </details>
-      <details className="simple-details"><summary>수업 관리</summary><div className="stack">
-        <p className="hint">입장 코드 {code} · 기록은 {formatKst(room.expiresAt)}에 삭제됩니다. 그 전에 결과를 내려받으세요.</p>
-        <details className="simple-details"><summary>활동 이동</summary><div className="stage-list">{LESSON_SCREENS.map(sc => <Button key={sc.id} size="sm" variant="quiet" active={sc.id === screenAt(room.screen.step, room.screen.sub)?.id} onClick={() => setScreen(sc)}>{sc.title}</Button>)}</div></details>
-        <details className="simple-details"><summary>공개·입력 설정</summary><div className="row">
-          <Button size="sm" active={room.revealed.firstGuesses} onClick={() => send({ type: 'teacher:reveal', what: 'firstGuesses', value: !room.revealed.firstGuesses })}>우리 반 선</Button>
-          <Button size="sm" active={room.revealed.volcanoes} onClick={() => send({ type: 'teacher:reveal', what: 'volcanoes', value: !room.revealed.volcanoes })}>화산</Button>
-          <Button size="sm" active={room.revealed.boundaries} onClick={() => send({ type: 'teacher:reveal', what: 'boundaries', value: !room.revealed.boundaries })}>판 경계</Button>
-          <Button size="sm" active={room.revealed.nicknames} onClick={() => send({ type: 'teacher:reveal', what: 'nicknames', value: !room.revealed.nicknames })}>별명 공개</Button>
-          <Button size="sm" onClick={() => send({ type: 'teacher:lockInput', locked: !room.inputLocked })}>{room.inputLocked ? '학생 입력 다시 열기' : '학생 입력 잠그기'}</Button>
-          <Button size="sm" onClick={() => send({ type: 'teacher:lockJoin', locked: !room.joinLocked })}>{room.joinLocked ? '입장 다시 열기' : '새 입장 잠그기'}</Button>
-        </div></details>
-        <details className="simple-details"><summary>참가자 관리</summary>{snap.participants.map(p => <div className="row" key={p.id}><span>{p.nickname}</span>{room.groups.length ? <select className="select" value={p.group ?? ''} onChange={e => send({ type: 'teacher:assignGroup', participantId: p.id, group: e.target.value || null })} aria-label={`${p.nickname} 모둠 지정`}><option value="">모둠 없음</option>{room.groups.map(g => <option key={g}>{g}</option>)}</select> : null}<Button size="sm" onClick={() => { if (confirm(`${p.nickname} 님을 내보낼까요?`)) void send({ type: 'teacher:remove', participantId: p.id }) }}>내보내기</Button></div>)}</details>
-        <div className="row"><a className="btn btn-sm btn-secondary" href={api.exportUrl(code, 'csv')} download>결과 표 받기 (CSV)</a><a className="btn btn-sm btn-quiet" href={api.exportUrl(code, 'json')} download>원본 기록 (JSON)</a></div>
-        <div className="row">{room.status === 'open' ? <Button size="sm" onClick={() => setConfirmEnd(true)}>수업 종료</Button> : null}<Button size="sm" variant="destructive" onClick={() => setConfirmDelete(true)}>수업 삭제</Button></div>
-      </div></details>
+      <div className="row" role="tablist" aria-label="교사 화면 탭">
+        {(['lobby', 'run', 'results'] as Tab[]).map((t) => <Button key={t} size="sm" variant="quiet" active={tab === t} onClick={() => setTab(t)} role="tab" aria-selected={tab === t}>{t === 'lobby' ? '대기실·QR' : t === 'run' ? '진행' : '결과'}</Button>)}
+      </div>
+      <div className="tiny muted num">만료 {formatKst(room.expiresAt)} · 만료 전 결과를 내려받으세요 · 상태 {room.status === 'open' ? '진행 중' : '종료'}</div>
+
+      <section className="stack" style={{ gap: 6 }}>
+        <div className="label">수업 단계 · 지금 <span className="num">{room.screen.step}-{room.screen.sub}</span> {screenAt(room.screen.step, room.screen.sub)?.title}</div>
+        <div className="stage-list">
+          {LESSON_STEPS.map((s) => { const cur = room.screen.step === s.n; const done = room.screen.step > s.n; return (
+            <button key={s.n} type="button" className={'stage-item' + (cur ? ' is-current' : done ? ' is-done' : '')} onClick={() => setScreen({ step: s.n, sub: 1 })} aria-current={cur ? 'step' : undefined} disabled={room.status !== 'open'} title={s.long}>
+              <span className="n">{s.n}</span><span>{s.short} · <span className="tiny muted">{s.long}</span>{cur ? <span className="tiny muted"> · {room.screen.sub}/{SUBS[s.n]}</span> : null}</span>
+            </button>) })}
+        </div>
+        <span className="hint">가운데 화면의 이전/다음으로 한 화면씩 넘기면 학생 화면이 따라옵니다. 활동 상태({STAGE_INFO[room.stage].short})는 화면에 맞춰 자동으로 바뀝니다.</span>
+      </section>
+
+      <section className="stack" style={{ gap: 8 }}>
+        <div className="label">공개·잠금</div>
+        <div className="row">
+          <Button size="sm" icon={room.revealed.firstGuesses ? 'eye' : 'eyeOff'} active={room.revealed.firstGuesses} onClick={() => send({ type: 'teacher:reveal', what: 'firstGuesses', value: !room.revealed.firstGuesses })} disabled={room.status !== 'open'}>추론 일괄 공개</Button>
+          <Button size="sm" icon="volcano" active={room.revealed.volcanoes} onClick={() => send({ type: 'teacher:reveal', what: 'volcanoes', value: !room.revealed.volcanoes })} disabled={room.status !== 'open'}>화산</Button>
+          <Button size="sm" icon="plate" active={room.revealed.boundaries} onClick={() => send({ type: 'teacher:reveal', what: 'boundaries', value: !room.revealed.boundaries })} disabled={room.status !== 'open'}>판 경계</Button>
+          <Button size="sm" icon="users" active={room.revealed.nicknames} onClick={() => send({ type: 'teacher:reveal', what: 'nicknames', value: !room.revealed.nicknames })} disabled={room.status !== 'open'}>별명 공개</Button>
+        </div>
+        <div className="row">
+          <Button size="sm" icon={room.inputLocked ? 'lock' : 'unlock'} active={room.inputLocked} onClick={() => send({ type: 'teacher:lockInput', locked: !room.inputLocked })} disabled={room.status !== 'open'}>{room.inputLocked ? '입력 잠김' : '입력 열림'}</Button>
+          <Button size="sm" icon={room.joinLocked ? 'lock' : 'unlock'} active={room.joinLocked} onClick={() => send({ type: 'teacher:lockJoin', locked: !room.joinLocked })} disabled={room.status !== 'open'}>{room.joinLocked ? '입장 잠김' : '입장 열림'}</Button>
+          {room.followView ? <Button size="sm" variant="quiet" icon="close" onClick={() => send({ type: 'teacher:clearSyncView' })}>따라가기 해제</Button> : null}
+        </div>
+      </section>
+
+      <section className="stack" style={{ gap: 6 }}>
+        <div className="row between">
+          <div className="label">참가 <span className="num">{snap.participants.length}/{room.maxParticipants}</span> · 접속 <span className="num">{counts.online}</span></div>
+          {room.groups.length ? <select className="select" style={{ width: 'auto', minHeight: 36, fontSize: 13, padding: '2px 8px' }} value={groupFilter} onChange={(e) => setGroupFilter(e.target.value)} aria-label="모둠 필터"><option value="">모든 모둠</option>{room.groups.map((g) => <option key={g} value={g}>{g}</option>)}</select> : null}
+        </div>
+        <div className="tiny muted num">최초 추론 {counts.first} · 수정 추론 {counts.revised} · 설명 작성 {counts.explanation}</div>
+        <div className="participant-list">
+          {visibleParticipants.map((p) => (
+            <div key={p.id} className={'participant' + (p.connected ? '' : ' is-off') + (snap.highlighted.includes(p.id) ? ' is-hl' : '')}>
+              <span className={'dot ' + (p.connected ? 'dot-on' : 'dot-off')} aria-label={p.connected ? '접속 중' : '이탈'} />
+              <button type="button" className="btn btn-quiet btn-sm" style={{ padding: '2px 6px', minHeight: 28 }} onClick={() => toggleHighlight(p.id)} title="비교 강조 (최대 2명)" aria-pressed={snap.highlighted.includes(p.id)}>{p.nickname}</button>
+              {p.group ? <span className="tiny muted">{p.group}</span> : null}
+              <span className="flags" aria-label="제출 현황">
+                <span className={'flag' + (p.hasFirst ? ' on' : '')} title="최초 추론">1</span>
+                <span className={'flag' + (p.hasRevised ? ' on' : '')} title="수정 추론">2</span>
+                <span className={'flag' + (p.evidenceCount ? ' on' : '')} title="증거">E</span>
+                <span className={'flag' + (p.hasExplanation ? ' on' : '')} title="설명">W</span>
+              </span>
+              {room.groups.length ? <select className="select" style={{ width: 'auto', minHeight: 28, fontSize: 12, padding: '0 4px' }} value={p.group ?? ''} onChange={(e) => send({ type: 'teacher:assignGroup', participantId: p.id, group: e.target.value || null })} aria-label={`${p.nickname} 모둠 지정`}><option value="">-</option>{room.groups.map((g) => <option key={g} value={g}>{g}</option>)}</select> : null}
+              <button type="button" className="btn btn-quiet btn-sm" style={{ padding: 2, minHeight: 28 }} onClick={() => { if (confirm(`${p.nickname} 님을 내보낼까요? 이 참가자의 접속이 끊기고 다시 입장해야 합니다.`)) void send({ type: 'teacher:remove', participantId: p.id }) }} aria-label={`${p.nickname} 내보내기`} title="내보내기"><Icon name="close" /></button>
+            </div>
+          ))}
+          {!visibleParticipants.length ? <span className="hint">아직 참가자가 없습니다. 대기실의 QR을 보여 주세요.</span> : null}
+        </div>
+      </section>
+
+      <section className="stack" style={{ gap: 6 }}>
+        <div className="label">결과·종료</div>
+        <div className="row">
+          <a className="btn btn-sm btn-secondary" href={api.exportUrl(code, 'csv')} download><Icon name="download" /> CSV</a>
+          <a className="btn btn-sm btn-secondary" href={api.exportUrl(code, 'json')} download><Icon name="download" /> JSON</a>
+          <Button size="sm" variant="secondary" icon="expand" onClick={() => { setTab('run'); setPresentation(true) }}>전체화면 발표</Button>
+        </div>
+        <div className="row">
+          {room.status === 'open' ? <Button size="sm" variant="secondary" icon="stop" onClick={() => setConfirmEnd(true)}>탐사실 종료</Button> : null}
+          <Button size="sm" variant="destructive" icon="trash" onClick={() => setConfirmDelete(true)}>삭제</Button>
+        </div>
+      </section>
     </aside>
   )
 
@@ -172,7 +210,7 @@ function TeachRoomInner({ code, data, initial }: { code: string; data: LessonDat
                 <div className="room-code" aria-label={`입장 코드 ${code.split('').join(' ')}`}>{code}</div>
                 <div className="qr-card">{qr ? <img src={qr} alt={`입장 QR 코드: ${joinUrl}`} /> : <div style={{ width: 220, height: 220 }} />}<span className="tiny" style={{ color: '#333' }}>{location.host}/join</span></div>
                 <p className="muted">학생은 카메라로 QR을 찍거나 <strong>{location.host}/join</strong> 에서 코드를 입력합니다. 별명만 적으면 됩니다.</p>
-                <div className="row"><Button size="sm" variant="secondary" icon="copy" onClick={() => navigator.clipboard?.writeText(joinUrl).then(() => toast.push('입장 링크를 복사했습니다.'))}>입장 링크 복사</Button><Button size="sm" variant="primary" iconRight="arrowRight" onClick={() => setTab('run')}>관찰 시작하기</Button></div>
+                <div className="row"><Button size="sm" variant="secondary" icon="copy" onClick={() => navigator.clipboard?.writeText(joinUrl).then(() => toast.push('입장 링크를 복사했습니다.'))}>입장 링크 복사</Button><Button size="sm" variant="primary" iconRight="arrowRight" onClick={() => setTab('run')}>진행 화면으로</Button></div>
                 <p className="tiny muted">참가 {snap.participants.length}명 · 공개 링크에는 교사 권한 값이 들어 있지 않습니다.</p>
               </div>
               <div aria-hidden="true" />
@@ -186,7 +224,6 @@ function TeachRoomInner({ code, data, initial }: { code: string; data: LessonDat
           )}
         </main>
       </div>
-      <Dialog open={!!pendingScreen} title="아직 제출하지 않은 학생이 있습니다" onClose={() => setPendingScreen(null)} actions={<><Button onClick={() => setPendingScreen(null)}>더 기다리기</Button><Button variant="primary" onClick={() => { if (pendingScreen) moveScreen(pendingScreen); setPendingScreen(null) }}>다음 활동 열기</Button></>}><p>{missingCount}명이 아직 제출하지 않았습니다. 다음 활동으로 함께 이동할까요? 제출 전 초안은 이 브라우저에서 유지되지만, 이전 단계 제출은 마감됩니다.</p></Dialog>
       <Dialog open={confirmEnd} title="탐사실을 종료할까요?" onClose={() => setConfirmEnd(false)} actions={<><Button variant="secondary" onClick={() => setConfirmEnd(false)}>취소</Button><Button variant="primary" onClick={() => { setConfirmEnd(false); void send({ type: 'teacher:end' }) }}>종료</Button></>}>
         <p className="muted">학생의 제출이 막히고 활동이 '결과 정리'로 바뀝니다. 기록은 만료 시각({formatKst(room.expiresAt)})까지 남아 결과를 내려받을 수 있습니다.</p>
       </Dialog>
